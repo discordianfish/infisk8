@@ -26,6 +26,7 @@
     "extract-text-webpack-plugin": "latest",
     "html-webpack-plugin": "latest",
     "json-loader": "latest",
+    "orbit-controls-es6": "^1.0.12",
     "progress-bar-webpack-plugin": "latest",
     "style-loader": "latest",
     "typescript": "latest",

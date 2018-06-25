@@ -2,6 +2,8 @@
 import './style.css'
 // three.js
 import * as THREE from 'three'
+import OrbitControls from 'orbit-controls-es6';
+
 
 // create the scene
 let scene = new THREE.Scene()
@@ -9,7 +11,9 @@ let scene = new THREE.Scene()
 // create the camera
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 
-let renderer = new THREE.WebGLRenderer()
+let renderer = new THREE.WebGLRenderer();
+
+const controls = new OrbitControls(camera, renderer.domElement);
 
 // set size
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -42,8 +46,10 @@ let material = new THREE.MeshBasicMaterial({
 
 // create a box and add it to the scene
 let box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material)
+let plane = new THREE.Mesh(new THREE.PlaneGeometry(100, 100, 10, 10), material)
 
 scene.add(box)
+scene.add(plane)
 
 box.position.x = 0.5
 box.rotation.y = 0.5
@@ -55,15 +61,16 @@ camera.position.z = 5
 camera.lookAt(scene.position)
 
 function animate(): void {
-	requestAnimationFrame(animate)
-	render()
+requestAnimationFrame(animate)
+  controls.update();
+  render()
 }
 
 function render(): void {
-	let timer = 0.002 * Date.now()
-	box.position.y = 0.5 + 0.5 * Math.sin(timer)
-	box.rotation.x += 0.1
-	renderer.render(scene, camera)
+  let timer = 0.002 * Date.now()
+  box.position.y = 0.5 + 0.5 * Math.sin(timer)
+  box.rotation.x += 0.1
+  renderer.render(scene, camera)
 }
 
 animate()
