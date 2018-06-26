@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@types/three": "latest",
+    "open-simplex-noise": "^1.5.0",
     "three": "latest"
   }
 }
