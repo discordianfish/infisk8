@@ -20,6 +20,9 @@ const BrowserSyncPluginConfig = new BrowserSyncPlugin({
 const ProgressBarPlugin = require('progress-bar-webpack-plugin')
 const ProgressBarPluginConfig = new ProgressBarPlugin()
 
+const ThreeWebpackPlugin = require('@wildpeaks/three-webpack-plugin');
+const ThreeWebpackPluginConfig = new ThreeWebpackPlugin()
+
 /* Export configuration */
 module.exports = {
     mode: 'development',
@@ -71,5 +74,5 @@ module.exports = {
         ]
     },
     resolve: { extensions: [".web.ts", ".web.js", ".ts", ".js"] },
-    plugins: [HTMLWebpackPluginConfig, BrowserSyncPluginConfig, ProgressBarPluginConfig]
+    plugins: [HTMLWebpackPluginConfig, BrowserSyncPluginConfig, ProgressBarPluginConfig, ThreeWebpackPluginConfig]
 }

@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/pinqy520/three-typescript-starter#readme",
   "devDependencies": {
+    "@wildpeaks/three-webpack-plugin": "^2.0.0",
     "awesome-typescript-loader": "latest",
     "browser-sync": "latest",
     "browser-sync-webpack-plugin": "latest",
@@ -29,6 +30,7 @@
     "orbit-controls-es6": "^1.0.12",
     "progress-bar-webpack-plugin": "latest",
     "style-loader": "latest",
+    "three": "^0.93.0",
     "typescript": "latest",
     "webpack": "latest",
     "webpack-cli": "^2.0.14",
