@@ -4,43 +4,8 @@ import './style.css'
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/js/controls/OrbitControls';
 import {PointerLockControls} from 'three/examples/js/controls/PointerLockControls';
+import {lockPointer} from './lock_pointer';
 import {newTerrain} from './terrain';
-/// https://github.com/mrdoob/three.js/blob/dev/examples/misc_controls_pointerlock.html
-var blocker = document.getElementById( 'blocker' );
-var instructions = document.getElementById( 'instructions' );
-
-var havePointerLock = 'pointerLockElement' in document;
-
-if ( havePointerLock ) {
-	var element = document.body;
-	var pointerlockchange = function ( event ) {
-		if ( document.pointerLockElement === element ) {
-			controls.enabled = true;
-			blocker.style.display = 'none';
-		} else {
-			controls.enabled = false;
-			blocker.style.display = 'block';
-			instructions.style.display = '';
-		}
-	};
-	var pointerlockerror = function ( event ) {
-		instructions.style.display = '';
-	};
-	// Hook pointer lock state change events
-	document.addEventListener( 'pointerlockchange', pointerlockchange, false );
-	document.addEventListener( 'pointerlockerror', pointerlockerror, false );
-	instructions.addEventListener( 'click', function ( event ) {
-		instructions.style.display = 'none';
-		// Ask the browser to lock the pointer
-    element.requestPointerLock = element.requestPointerLock
-		element.requestPointerLock();
-	}, false );
-} else {
-	instructions.innerHTML = 'Your browser doesn\'t seem to support Pointer Lock API';
-}
-/// --------------
-
-
 
 
 let scene = new THREE.Scene()
@@ -51,6 +16,8 @@ let renderer = new THREE.WebGLRenderer();
 // const controls = new OrbitControls(camera, renderer.domElement);
 const controls = new PointerLockControls(camera)
 scene.add( controls.getObject() );
+
+lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), controls)
 
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
