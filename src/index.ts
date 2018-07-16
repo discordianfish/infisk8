@@ -2,11 +2,11 @@
 import './style.css'
 // three.js
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/js/controls/OrbitControls';
+// import {OrbitControls} from 'three/examples/js/controls/OrbitControls';
 import {PointerLockControls} from 'three/examples/js/controls/PointerLockControls';
 import {lockPointer} from './lock_pointer';
 import {newTerrain} from './terrain';
-
+import Controls from './controls';
 
 let scene = new THREE.Scene()
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
@@ -14,10 +14,12 @@ let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHei
 let renderer = new THREE.WebGLRenderer();
 
 // const controls = new OrbitControls(camera, renderer.domElement);
-const controls = new PointerLockControls(camera)
-scene.add( controls.getObject() );
+const plc = new PointerLockControls(camera);
+const yawObject = plc.getObject();
+scene.add(yawObject);
+lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), plc)
 
-lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), controls)
+const controls = new Controls(document.getElementById('blocker'), document.getElementById('instructions'), plc)
 
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
@@ -56,11 +58,30 @@ camera.position.z = 5
 camera.lookAt(scene.position)
 */
 
-const clock = new THREE.Clock(true)
+// const clock = new THREE.Clock(true)
+var prevTime = performance.now();
+var velocity = new THREE.Vector3();
 function animate(): void {
-  requestAnimationFrame(animate)
-  // controls.update();
-  // controls.update(clock.getDelta());
+  requestAnimationFrame(animate);
+  if (plc.enabled) {
+    var time = performance.now();
+    var delta = ( time - prevTime ) / 1000;
+    prevTime = time;
+
+	  velocity.x -= velocity.x * 10.0 * delta;
+		velocity.z -= velocity.z * 10.0 * delta;
+    velocity.y -= 9.8 * 100.0 * delta; // 100.0 = mass
+    velocity.y = Math.max(0, velocity.y);
+
+    var direction = controls.input();
+    velocity.z -= direction.z * 400.0 * delta;
+    velocity.x -= direction.x * 400.0 * delta;
+
+    yawObject.translateX(velocity.x * delta);
+    yawObject.translateY(velocity.y * delta);
+    yawObject.translateZ(velocity.z * delta);
+    console.log("velocity", velocity); //, "direction", direction);
+  }
   render()
 }
 
