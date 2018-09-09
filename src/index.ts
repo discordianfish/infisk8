@@ -16,6 +16,7 @@ let renderer = new THREE.WebGLRenderer();
 // const controls = new OrbitControls(camera, renderer.domElement);
 const plc = new PointerLockControls(camera);
 const yawObject = plc.getObject();
+yawObject.position.y = 1000;
 scene.add(yawObject);
 lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), plc)
 
@@ -40,7 +41,8 @@ let material = new THREE.MeshBasicMaterial({
 	wireframe: true
 })
 
-// create a box and add it to the scene
+let raycaster = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 10 );
+
 const size = 1000;
 let terrain = new THREE.Mesh(newTerrain(size, size, size/10, size/10), material);
 terrain.rotation.x = -Math.PI/2;
@@ -51,9 +53,9 @@ scene.add(terrain)
 // box.rotation.y = 0.5
 
 /*
-camera.position.x = 5
-camera.position.y = 5
-camera.position.z = 5
+camera.position.x = 0
+camera.position.y = 0
+camera.position.z = 0
 
 camera.lookAt(scene.position)
 */
@@ -68,19 +70,37 @@ function animate(): void {
     var delta = ( time - prevTime ) / 1000;
     prevTime = time;
 
+    var direction = controls.input();
+
+    raycaster.ray.origin.copy(yawObject.position);
+    raycaster.ray.origin.y += 10;
+    var intersections = raycaster.intersectObjects([terrain]);
+    var onGround = intersections.length > 0;
+    if (onGround) {
+      // if steepness is high enough, add 'sliding' direction to input vector.
+      // ---
+      // Attempt #1:
+      var nV = intersections[0].face.normal;
+      direction.add(nV);
+      // -> Bouncy, raycaster fails
+    }
+
 	  velocity.x -= velocity.x * 10.0 * delta;
 		velocity.z -= velocity.z * 10.0 * delta;
-    velocity.y -= 9.8 * 100.0 * delta; // 100.0 = mass
-    velocity.y = Math.max(0, velocity.y);
+    velocity.y -= 9.8 * 1.0 * delta; // 100.0 = mass
 
-    var direction = controls.input();
+    if (onGround) {
+      velocity.y = Math.max(0, velocity.y);
+    }
+
     velocity.z -= direction.z * 400.0 * delta;
     velocity.x -= direction.x * 400.0 * delta;
+    velocity.y += (direction.y * 200.0); // * delta;
 
     yawObject.translateX(velocity.x * delta);
     yawObject.translateY(velocity.y * delta);
     yawObject.translateZ(velocity.z * delta);
-    console.log("velocity", velocity); //, "direction", direction);
+    // console.log("velocity", velocity); //, "direction", direction);
   }
   render()
 }

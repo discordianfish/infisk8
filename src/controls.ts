@@ -5,6 +5,7 @@ export default class Controls {
   moveLeft: boolean
   moveRight: boolean
   moveBackward: boolean
+  canJump: boolean
   jump: boolean
 
   constructor(blocker: HTMLElement, instructions: HTMLElement, controls) {
@@ -13,6 +14,7 @@ export default class Controls {
     this.moveRight = false;
     this.moveBackward = false;
     this.jump = false;
+    this.canJump = false;
     document.addEventListener( 'keydown', (event) => { this.onKeyDown(event) }, false );
     document.addEventListener( 'keyup', (event) => { this.onKeyUp(event) }, false );
   }
@@ -40,8 +42,9 @@ export default class Controls {
 				this.moveRight = true;
 				break;
 
-			case 32: // space
-        this.jump = true;
+      case 32: // space
+        if (this.canJump === true) this.jump = true;
+        this.canJump = false;
 				break;
 		}
 	};
@@ -71,7 +74,7 @@ export default class Controls {
         break;
 
 			case 32: // space
-        this.jump = false;
+        this.canJump = false;
 				break;
 		}
 
