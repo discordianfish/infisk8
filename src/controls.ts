@@ -5,6 +5,7 @@ export default class Controls {
   moveLeft: boolean
   moveRight: boolean
   moveBackward: boolean
+  boost: boolean
   canJump: boolean
   jump: boolean
 
@@ -13,10 +14,13 @@ export default class Controls {
     this.moveLeft = false;
     this.moveRight = false;
     this.moveBackward = false;
+    this.boost = false;
     this.jump = false;
     this.canJump = false;
     document.addEventListener( 'keydown', (event) => { this.onKeyDown(event) }, false );
     document.addEventListener( 'keyup', (event) => { this.onKeyUp(event) }, false );
+    document.addEventListener( 'mousedown', (event) => { this.onMouseDown(event) }, false );
+    document.addEventListener( 'mouseup', (event) => { this.onMouseUp(event) }, false );
   }
 
   onKeyDown ( event ) {
@@ -47,7 +51,17 @@ export default class Controls {
         this.canJump = false;
 				break;
 		}
-	};
+  };
+
+  onMouseDown(event) {
+    console.log("mouseDown");
+    this.boost = true;
+  };
+
+  onMouseUp(event) {
+    console.log("mouseUp");
+    this.boost = false;
+  };
 
   onKeyUp(event) {
 
@@ -84,7 +98,9 @@ export default class Controls {
     var input = new THREE.Vector3();
  		input.z = Number( this.moveForward ) - Number( this.moveBackward );
     input.x = Number( this.moveLeft ) - Number( this.moveRight );
-    input.y = Number( this.jump );
+    // input.y = Number( this.jump )
+    // input.y += Number(this.boost) * 0.0007;
+    // input.z += Number(this.boost) * 0.1;
     input.normalize(); // this ensures consistent movements in all inputs
     return input;
   }

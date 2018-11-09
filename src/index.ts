@@ -62,11 +62,13 @@ function animate(): void {
 
     // raycaster.ray.origin.copy(yawObject.position);
     // raycaster.ray.origin.y += 100;
+    var rayOffset = 100;
     var rayOrigin = new THREE.Vector3().copy(yawObject.position)
-    rayOrigin.y += 100
+    rayOrigin.y += rayOffset;
     raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
 
     var groundLevel;
+    var groundDistance;
     var intersections = raycaster.intersectObjects([terrain]);
     var onGround = false;
     if (intersections.length > 0) {
@@ -78,7 +80,11 @@ function animate(): void {
       // direction.add(nV);
       // -> Bouncy, raycaster fails
       groundLevel = intersections[0].point.y
-
+      groundDistance = intersections[0].distance - rayOffset;
+      if (groundDistance < 1) {
+        onGround = true
+      }
+      console.log("groundDistance", groundDistance);
       // TODO: if distance < x, set onGround = true
     }
 
@@ -91,15 +97,19 @@ function animate(): void {
       velocity.y = Math.max(0, velocity.y);
     }*/
 
-    velocity.z -= direction.z * 400.0 * delta;
-    velocity.x -= direction.x * 400.0 * delta;
-    velocity.y += (direction.y * 200.0); // * delta;
+    if (onGround || controls.boost) {
+      velocity.z -= direction.z * 40.0 * delta;
+      velocity.x -= direction.x * 40.0 * delta;
+      velocity.y += (direction.y * 20.0); // * delta;
+    }
+    velocity.y += Number(controls.boost);
+    velocity.z -= Number(controls.boost);
 
     yawObject.translateX(velocity.x * delta);
     yawObject.translateY(velocity.y * delta);
     yawObject.translateZ(velocity.z * delta);
-    console.log("groundLevel: ", groundLevel);
-    console.log("yawObject.position.y: ", yawObject.position.y);
+    // console.log("groundLevel: ", groundLevel);
+    // console.log("yawObject.position.y: ", yawObject.position.y);
     if (yawObject.position.y < groundLevel) {
       yawObject.position.y = groundLevel
     }
