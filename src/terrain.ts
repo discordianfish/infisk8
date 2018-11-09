@@ -37,9 +37,9 @@ export function newTerrain(width, height, widthSegments, heightSegments) {
 
 			const detailFactor = 0.01;
       const z = (noiseGen.noise2D(x * detailFactor, y * detailFactor) + 1) * 100;
-			vertices.push( x, - y, z );
+			vertices.push( x, -y, z );
 
-			normals.push( 0, 0, 1 );
+			normals.push( 0, -1, 0 );
 
 			uvs.push( ix / gridX );
 			uvs.push( 1 - ( iy / gridY ) );
@@ -73,7 +73,8 @@ export function newTerrain(width, height, widthSegments, heightSegments) {
   let geo = new THREE.BufferGeometry()
 	geo.setIndex( indices );
 	geo.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
-	geo.addAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ) );
-	geo.addAttribute( 'uv', new THREE.Float32BufferAttribute( uvs, 2 ) );
+  geo.addAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ) );
+  geo.addAttribute( 'uv', new THREE.Float32BufferAttribute( uvs, 2 ) );
+  geo.computeVertexNormals();
 	return geo;
 }
