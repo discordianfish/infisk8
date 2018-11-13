@@ -17,7 +17,7 @@ let renderer = new THREE.WebGLRenderer();
 // const controls = new OrbitControls(camera, renderer.domElement);
 const plc = new PointerLockControls(camera);
 const yawObject = plc.getObject();
-yawObject.position.y = 300;
+yawObject.position.y = 1200;
 scene.add(yawObject);
 // const fpc = new FirstPersonControls(camera);
 // const yawObject = camera;
@@ -69,76 +69,87 @@ var groundLevel;
 var groundDistance;
 var onGround = false;
 
+function groundCheck(delta): void {
+  // raycaster.ray.origin.copy(yawObject.position);
+  // raycaster.ray.origin.y += 100;
+  var rayOffset = 100;
+  var rayOrigin = new THREE.Vector3().copy(yawObject.position)
+  rayOrigin.y += rayOffset;
+  raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
+
+  var intersections = raycaster.intersectObject(terrain);
+  if (intersections.length > 0) {
+    groundLevel = intersections[0].point.y;
+    groundDistance = intersections[0].distance - rayOffset;
+
+    if (groundDistance < 1) {
+      onGround = true
+      var n = intersections[0].face.normal;
+
+      // convert local normal to world position.. I think..?
+      var normalMatrix = new THREE.Matrix3().getNormalMatrix( intersections[0].object.matrixWorld );
+      var normal = n.clone().applyMatrix3(normalMatrix).normalize();
+
+      var reflection = new THREE.Vector3().copy(velocity); // yawObject.position);
+      reflection.reflect(normal);
+      var velocityArr = new THREE.ArrowHelper(velocity, intersections[0].point, velocity.length() * 10, 0x0000ff);
+      scene.add(velocityArr);
+
+
+      var reflectionArr = new THREE.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000);
+      scene.add(reflectionArr);
+
+      // We can't add the reflection to velocity since that's relative to the FPS controller
+      velocity.add(reflection);
+      // yawObject.position.add(reflection.multiplyScalar(delta));
+    }
+  }
+}
+
+
 function animate(): void {
   requestAnimationFrame(animate);
   if (plc.enabled) {
     var time = performance.now();
     var delta = ( time - prevTime ) / 1000;
     prevTime = time;
-
-    var direction = controls.input();
-
-    // raycaster.ray.origin.copy(yawObject.position);
-    // raycaster.ray.origin.y += 100;
-    var rayOffset = 100;
-    var rayOrigin = new THREE.Vector3().copy(yawObject.position)
-    rayOrigin.y += rayOffset;
-    raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
-
-    var intersections = raycaster.intersectObject(terrain);
-    if (intersections.length > 0) {
-      groundLevel = intersections[0].point.y;
-      groundDistance = intersections[0].distance - rayOffset;
-
-      if (groundDistance < 1) {
-        onGround = true
-        var n = intersections[0].face.normal;
-
-        // convert local normal to world position.. I think..?
-        var normalMatrix = new THREE.Matrix3().getNormalMatrix( intersections[0].object.matrixWorld );
-        var normal = n.clone().applyMatrix3(normalMatrix).normalize();
-
-        var reflection = new THREE.Vector3().copy(velocity); // yawObject.position);
-        reflection.reflect(normal);
-        var velocityArr = new THREE.ArrowHelper(velocity, intersections[0].point, 10, 0x0000ff);
-        scene.add(velocityArr);
-
-
-        var reflectionArr = new THREE.ArrowHelper(reflection, intersections[0].point, 10, 0xff0000);
-        scene.add(reflectionArr);
-
-        // We can't add the reflection to velocity since that's relative to the FPS controller
-        //velocity.add(reflection.multiplyScalar(delta));
-        yawObject.position.add(reflection.multiplyScalar(delta));
-      }
-    }
+    groundCheck(delta)
 
 	  velocity.x -= velocity.x * 1.0 * delta;
 		velocity.z -= velocity.z * 1.0 * delta;
-    velocity.y -= 9.8 * 1.0 * delta; // 100.0 = mass
+    velocity.y -= 9.8 * 100.0 * delta;
+    yawObject.position.add(velocity.multiplyScalar(delta));
 
+    var direction = controls.input();
+
+    var controlVelocity = new THREE.Vector3();
     if (onGround || controls.boost) {
-      velocity.z -= direction.z * 40.0 * delta;
-      velocity.x -= direction.x * 40.0 * delta;
-      velocity.y += (direction.y * 20.0); // * delta;
+      controlVelocity.z -= direction.z * 40.0 * delta;
+      controlVelocity.x -= direction.x * 40.0 * delta;
+      controlVelocity.y += (direction.y * 20.0); // * delta;
     }
-    velocity.y += Number(controls.boost);
-    velocity.z -= Number(controls.boost);
+    controlVelocity.y += Number(controls.boost);
+    controlVelocity.z -= Number(controls.boost);
 
-    yawObject.translateX(velocity.x * delta);
-    yawObject.translateY(velocity.y * delta);
-    yawObject.translateZ(velocity.z * delta);
+    // FIXME: I think we need to add the control velocity to the overall
+    // velocity to keep momentum for slide calculation.
+    yawObject.translateX(controlVelocity.x);
+    yawObject.translateY(controlVelocity.y);
+    yawObject.translateZ(controlVelocity.z);
+
+
+
     // console.log("groundLevel: ", groundLevel);
     // console.log("yawObject.position.y: ", yawObject.position.y);
     if (yawObject.position.y < groundLevel) {
       yawObject.position.y = groundLevel;
-      if (velocity.y < 0) {
+      /*if (velocity.y < 0) {
         velocity.y = 0; // 1 * delta;
-      }
+      }*/
     }
     // yawObject.position.y = Math.max(yawObject.position.y, groundLevel);
     // axis.position.set(camera.x, camera.y, camera.z + 2);
-    console.log("velocity", velocity); //, "direction", direction);
+    console.log(velocity);
   }
   render()
 }
