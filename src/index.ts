@@ -52,11 +52,15 @@ let terrain = new THREE.Mesh(newTerrain(size, size, size/10, size/10), material)
 terrain.rotation.x = -Math.PI/2;
 
 scene.add(terrain)
+/*
 var vnh = new THREE.VertexNormalsHelper(terrain, 10, 0xff0000 );
 scene.add(vnh);
-
-// var fnh = new THREE.FaceNormalsHelper(terrain, 10, 0x00ff00, 1 );
-// scene.add(fnh);
+*/
+/*
+console.log(terrain.geometry.faces);
+var fnh = new THREE.FaceNormalsHelper(terrain, 10, 0x00ff00, 1 );
+scene.add(fnh);
+*/
 
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
@@ -81,61 +85,37 @@ function animate(): void {
     rayOrigin.y += rayOffset;
     raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
 
-    var intersections = raycaster.intersectObjects([terrain]);
+    var intersections = raycaster.intersectObject(terrain);
     if (intersections.length > 0) {
-      // console.log("interact");
-      // if steepness is high enough, add 'sliding' direction to input vector.
-      // ---
-      // Attempt #1:
-
-      //var angle = intersections[0].face.normal.angleTo(velocity);
-      //var reflection = velocity.
-
-      // -> Bouncy, raycaster fails
       groundLevel = intersections[0].point.y;
       groundDistance = intersections[0].distance - rayOffset;
+
       if (groundDistance < 1) {
         onGround = true
         var n = intersections[0].face.normal;
 
-        var arr = new THREE.ArrowHelper(n, intersections[0].point, 10, 0x00ff00);
-        scene.add(arr);
-        // FIXME FIXME FIXME
-        // The reflection isn't working properly because the normals are wrong
-        // for whatever reason.
-        // Probably because we don't calculcate them properly in terrain.js
-        // ----
-        // var vns = intersections[0].face.vertexNormals;
-        // console.log("normal", intersections[0].face.normal);
-        // console.log("vns", vns);
+        // convert local normal to world position.. I think..?
+        var normalMatrix = new THREE.Matrix3().getNormalMatrix( intersections[0].object.matrixWorld );
+        var normal = n.clone().applyMatrix3(normalMatrix).normalize();
 
-        // var n = new THREE.Vector3().crossVectors(vns[0], vns[1]).cross(vns[2]);
+        var reflection = new THREE.Vector3().copy(velocity); // yawObject.position);
+        reflection.reflect(normal);
+        var velocityArr = new THREE.ArrowHelper(velocity, intersections[0].point, 10, 0x0000ff);
+        scene.add(velocityArr);
 
-        var reflection = new THREE.Vector3().copy(yawObject.position);
-        reflection.reflect(n).multiplyScalar(0.1);
-        velocity.add(reflection);
-        console.log("normal", n);
-        console.log("reflection", reflection);
 
-        // var reflection = yawObject.position.reflect(n).multiplyScalar(1);
-        // var reflection = .position.reflect(n).multiplyScalar(1);
-        // velocity.add(reflection.clampScalar(0, 10));
-        // yawObject.translateX(reflection.x * delta)
-        // yawObject.translateY(reflection.y * delta)
-        // yawObject.translateZ(reflection.z * delta)
+        var reflectionArr = new THREE.ArrowHelper(reflection, intersections[0].point, 10, 0xff0000);
+        scene.add(reflectionArr);
+
+        // We can't add the reflection to velocity since that's relative to the FPS controller
+        //velocity.add(reflection.multiplyScalar(delta));
+        yawObject.position.add(reflection.multiplyScalar(delta));
       }
-      // console.log("groundDistance", groundDistance);
-      // TODO: if distance < x, set onGround = true
     }
 
-	  velocity.x -= velocity.x * 10.0 * delta;
-		velocity.z -= velocity.z * 10.0 * delta;
+	  velocity.x -= velocity.x * 1.0 * delta;
+		velocity.z -= velocity.z * 1.0 * delta;
     velocity.y -= 9.8 * 1.0 * delta; // 100.0 = mass
-
-    /*
-    if (onGround) {
-      velocity.y = Math.max(0, velocity.y);
-    }*/
 
     if (onGround || controls.boost) {
       velocity.z -= direction.z * 40.0 * delta;
@@ -152,10 +132,13 @@ function animate(): void {
     // console.log("yawObject.position.y: ", yawObject.position.y);
     if (yawObject.position.y < groundLevel) {
       yawObject.position.y = groundLevel;
+      if (velocity.y < 0) {
+        velocity.y = 0; // 1 * delta;
+      }
     }
     // yawObject.position.y = Math.max(yawObject.position.y, groundLevel);
     // axis.position.set(camera.x, camera.y, camera.z + 2);
-    // console.log("velocity", velocity); //, "direction", direction);
+    console.log("velocity", velocity); //, "direction", direction);
   }
   render()
 }
