@@ -4,6 +4,17 @@ import {lockPointer} from './lock_pointer';
 import {newTerrain} from './terrain';
 import Controls from './controls';
 
+// TBH, I have no idea what I'm doing here. Needed for node upgrade. Probably
+// node env during build doesn't provide the pointer lock API.
+declare global {
+    interface Document {
+        pointerLockElement?: Element;
+    }
+    interface HTMLElement {
+        requestPointerLock?: any;
+    }
+}
+
 const DEBUG = new URL(window.location.href).searchParams.get('debug') == '1';
 let scene = new THREE.Scene()
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
