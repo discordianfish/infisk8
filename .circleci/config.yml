@@ -41,7 +41,7 @@ jobs:
             EOF
       - run:
           name: Deploy to gh-pages
-          command: ./deploy
+          command: cd dist && ../deploy
 
 workflows:
   version: 2
