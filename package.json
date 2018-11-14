@@ -28,13 +28,13 @@
     "extract-text-webpack-plugin": "latest",
     "html-webpack-plugin": "latest",
     "json-loader": "latest",
-    "orbit-controls-es6": "^1.0.12",
+    "orbit-controls-es6": "^2.0.0",
     "progress-bar-webpack-plugin": "latest",
     "style-loader": "latest",
-    "three": "^0.93.0",
+    "three": "^0.98.0",
     "typescript": "latest",
     "webpack": "latest",
-    "webpack-cli": "^2.0.14",
+    "webpack-cli": "^3.1.2",
     "webpack-dev-server": "latest"
   },
   "dependencies": {
