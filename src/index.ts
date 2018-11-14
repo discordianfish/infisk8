@@ -1,25 +1,27 @@
-// add styles
-import './style.css'
-// three.js
 import * as THREE from 'three';
-// import {OrbitControls} from 'three/examples/js/controls/OrbitControls';
 import {PointerLockControls} from 'three/examples/js/controls/PointerLockControls';
-// import {FirstPersonControls} from 'three/examples/js/controls/FirstPersonControls';
 import {lockPointer} from './lock_pointer';
 import {newTerrain} from './terrain';
 import Controls from './controls';
 
+const DEBUG = new URL(window.location.href).searchParams.get('debug') == '1';
 let scene = new THREE.Scene()
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
 
 let renderer = new THREE.WebGLRenderer();
 
+window.addEventListener( 'resize', onWindowResize, false );
+
+function onWindowResize(){
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+}
+
 // const controls = new OrbitControls(camera, renderer.domElement);
 const plc = new PointerLockControls(camera);
 const yawObject = plc.getObject();
 scene.add(yawObject);
-// const fpc = new FirstPersonControls(camera);
-// const yawObject = camera;
 
 lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), plc)
 
@@ -89,14 +91,12 @@ function groundCheck(delta): number {
       var normal = n.clone().applyMatrix3(normalMatrix).normalize();
 
       var reflection = new THREE.Vector3().copy(velocity); // yawObject.position);
-      reflection.reflect(normal);
-      var velocityArr = new THREE.ArrowHelper(velocity, intersections[0].point, velocity.length() * 10, 0x0000ff);
-      scene.add(velocityArr);
-
-
-      var reflectionArr = new THREE.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000);
-      scene.add(reflectionArr);
-
+      // reflection.reflect(normal);
+      reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+      if (DEBUG) {
+        scene.add(new THREE.ArrowHelper(velocity, intersections[0].point, velocity.length() * 10, 0x0000ff));
+        scene.add(new THREE.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
+      }
       velocity = reflection;
     }
   }
@@ -150,9 +150,6 @@ function animate(): void {
 }
 
 function render(): void {
-  let timer = 0.002 * Date.now()
-  // box.position.y = 0.5 + 0.5 * Math.sin(timer)
-  // box.rotation.x += 0.1
   renderer.render(scene, camera)
 }
 
