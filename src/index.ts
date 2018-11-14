@@ -17,7 +17,6 @@ let renderer = new THREE.WebGLRenderer();
 // const controls = new OrbitControls(camera, renderer.domElement);
 const plc = new PointerLockControls(camera);
 const yawObject = plc.getObject();
-yawObject.position.y = 1200;
 scene.add(yawObject);
 // const fpc = new FirstPersonControls(camera);
 // const yawObject = camera;
@@ -48,28 +47,27 @@ let material = new THREE.MeshBasicMaterial({
 let raycaster = new THREE.Raycaster(); // new THREE.Vector3(), new THREE.Vector3( 0, -1, 0 ), 0, 10 );
 
 const size = 1000;
-let terrain = new THREE.Mesh(newTerrain(size, size, size/10, size/10), material);
+let terrain = new THREE.Mesh(newTerrain(size, size, size/5, size/5), material);
 terrain.rotation.x = -Math.PI/2;
 
 scene.add(terrain)
-/*
-var vnh = new THREE.VertexNormalsHelper(terrain, 10, 0xff0000 );
-scene.add(vnh);
-*/
-/*
-console.log(terrain.geometry.faces);
-var fnh = new THREE.FaceNormalsHelper(terrain, 10, 0x00ff00, 1 );
-scene.add(fnh);
-*/
 
-var prevTime = performance.now();
+var rayOffset = 100;
+var rayOrigin = new THREE.Vector3().copy(yawObject.position)
+rayOrigin.y += rayOffset;
+raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
+
+var intersections = raycaster.intersectObject(terrain);
+if (intersections.length == 0) {
+  console.log("Couldn't find ground, spawning at default level");
+  yawObject.position.y = 100;
+} else {
+  yawObject.position.y = intersections[0].point.y + 10
+}
+
 var velocity = new THREE.Vector3();
 
-var groundLevel;
-var groundDistance;
-var onGround = false;
-
-function groundCheck(delta): void {
+function groundCheck(delta): number {
   // raycaster.ray.origin.copy(yawObject.position);
   // raycaster.ray.origin.y += 100;
   var rayOffset = 100;
@@ -77,13 +75,13 @@ function groundCheck(delta): void {
   rayOrigin.y += rayOffset;
   raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
 
+  var groundLevel;
   var intersections = raycaster.intersectObject(terrain);
   if (intersections.length > 0) {
     groundLevel = intersections[0].point.y;
-    groundDistance = intersections[0].distance - rayOffset;
 
+    var groundDistance = intersections[0].distance - rayOffset;
     if (groundDistance < 1) {
-      onGround = true
       var n = intersections[0].face.normal;
 
       // convert local normal to world position.. I think..?
@@ -99,58 +97,55 @@ function groundCheck(delta): void {
       var reflectionArr = new THREE.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000);
       scene.add(reflectionArr);
 
-      // We can't add the reflection to velocity since that's relative to the FPS controller
-      velocity.add(reflection);
-      // yawObject.position.add(reflection.multiplyScalar(delta));
+      velocity = reflection;
     }
   }
+  return groundLevel;
 }
 
 
+var prevTime = performance.now();
 function animate(): void {
   requestAnimationFrame(animate);
-  if (plc.enabled) {
-    var time = performance.now();
-    var delta = ( time - prevTime ) / 1000;
-    prevTime = time;
-    groundCheck(delta)
-
-	  velocity.x -= velocity.x * 1.0 * delta;
-		velocity.z -= velocity.z * 1.0 * delta;
-    velocity.y -= 9.8 * 100.0 * delta;
-    yawObject.position.add(velocity.multiplyScalar(delta));
-
-    var direction = controls.input();
-
-    var controlVelocity = new THREE.Vector3();
-    if (onGround || controls.boost) {
-      controlVelocity.z -= direction.z * 40.0 * delta;
-      controlVelocity.x -= direction.x * 40.0 * delta;
-      controlVelocity.y += (direction.y * 20.0); // * delta;
-    }
-    controlVelocity.y += Number(controls.boost);
-    controlVelocity.z -= Number(controls.boost);
-
-    // FIXME: I think we need to add the control velocity to the overall
-    // velocity to keep momentum for slide calculation.
-    yawObject.translateX(controlVelocity.x);
-    yawObject.translateY(controlVelocity.y);
-    yawObject.translateZ(controlVelocity.z);
-
-
-
-    // console.log("groundLevel: ", groundLevel);
-    // console.log("yawObject.position.y: ", yawObject.position.y);
-    if (yawObject.position.y < groundLevel) {
-      yawObject.position.y = groundLevel;
-      /*if (velocity.y < 0) {
-        velocity.y = 0; // 1 * delta;
-      }*/
-    }
-    // yawObject.position.y = Math.max(yawObject.position.y, groundLevel);
-    // axis.position.set(camera.x, camera.y, camera.z + 2);
-    console.log(velocity);
+  if (!plc.enabled) {
+    return
   }
+
+  var time = performance.now();
+  var delta = ( time - prevTime ) / 1000;
+  prevTime = time;
+  var groundLevel = groundCheck(delta);
+  var groundDistance = yawObject.position.y - groundLevel;
+  var onGround = groundDistance < 1;
+
+  var direction = controls.input();
+
+  var speed = 20
+  var controlVelocity = new THREE.Vector3();
+  if (onGround || controls.boost) {
+    controlVelocity.z -= direction.z * speed * delta;
+    controlVelocity.x -= direction.x * speed * delta;
+    controlVelocity.y += (direction.y * speed); // * delta;
+  }
+  controlVelocity.y += Number(controls.boost) * speed * delta;
+  controlVelocity.z -= Number(controls.boost) * speed * delta;
+
+  // We don't translate yawObject directly so we have one motion vector and
+  // we can include the momentum in the reflection on terrain collision.
+  controlVelocity.applyQuaternion(yawObject.quaternion);
+  velocity.add(controlVelocity);
+
+  if (yawObject.position.y < groundLevel) {
+    yawObject.position.y = groundLevel;
+    velocity.z += velocity.y;
+    velocity.y = 0;
+  }
+
+  // velocity.x -= velocity.x * 1.0 * delta;
+  // velocity.z -= velocity.z * 1.0 * delta;
+  velocity.y -= 9.8 * delta;
+  console.log(velocity);
+  yawObject.position.add(velocity.clone().multiplyScalar(delta));
   render()
 }
 

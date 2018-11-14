@@ -35,8 +35,8 @@ export function newTerrain(width, height, widthSegments, heightSegments) {
 
 			var x = ix * segment_width - width_half;
 
-			const detailFactor = 0.01;
-      const z = (noiseGen.noise2D(x * detailFactor, y * detailFactor) + 1) * 100;
+			const detailFactor = 0.02;
+      const z = (noiseGen.noise2D(x * detailFactor, y * detailFactor) + 1) * 50;
 			vertices.push( x, -y, z );
 
       normals.push( 0, -1,  0 );
