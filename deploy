@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+REPO="git@github.com:discordianfish/infisk8.git"
+REV=${CIRCLE_SHA1:-$(git rev-parse HEAD)}
+temp=$(mktemp -d)
+git clone -b gh-pages "$REPO" "$temp"
+mv * "$temp"/
+cd "$temp"
+git add .
+
+git config --global user.email "github+builds@freigeist.org"
+git config --global user.name "Build Robot"
+
+git commit --allow-empty -m "Updating gh-pages from $REV"
+git push -f origin gh-pages:gh-pages
