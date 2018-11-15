@@ -8,6 +8,7 @@ export default class Controls {
   boost: boolean
   canJump: boolean
   jump: boolean
+  fire: boolean
 
   constructor(blocker: HTMLElement, instructions: HTMLElement) {
     this.moveForward = false;
@@ -16,6 +17,7 @@ export default class Controls {
     this.moveBackward = false;
     this.boost = false;
     this.jump = false;
+    this.fire = false;
     this.canJump = false;
     document.addEventListener( 'keydown', (event) => { this.onKeyDown(event) }, false );
     document.addEventListener( 'keyup', (event) => { this.onKeyUp(event) }, false );
@@ -53,13 +55,25 @@ export default class Controls {
   };
 
   onMouseDown(event) {
-    console.log("mouseDown");
-    this.boost = true;
+    switch(event.button) {
+      case 0:
+        this.fire = true;
+        ;;
+      case 2:
+        this.boost = true;
+        ;;
+    }
   };
 
   onMouseUp(event) {
-    console.log("mouseUp");
-    this.boost = false;
+    switch(event.button) {
+      case 0:
+        this.fire = false;
+        ;;
+      case 2:
+        this.boost = false;
+        ;;
+    }
   };
 
   onKeyUp(event) {

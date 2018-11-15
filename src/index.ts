@@ -30,7 +30,7 @@ function onWindowResize(){
 }
 
 // const controls = new OrbitControls(camera, renderer.domElement);
-const player = new Player(document, camera);
+const player = new Player(document, scene, camera);
 const yawObject = player.object;
 scene.add(yawObject);
 player.addEventListeners();
@@ -122,10 +122,12 @@ function animate(): void {
   if (!player.isLocked) {
     return
   }
-
   var time = performance.now();
   var delta = ( time - prevTime ) / 1000;
   prevTime = time;
+
+  player.update(delta)
+
   var groundLevel = groundCheck(delta);
   var groundDistance = yawObject.position.y - groundLevel;
   var onGround = groundDistance < 1;
@@ -156,8 +158,12 @@ function animate(): void {
   // velocity.x -= velocity.x * 1.0 * delta;
   // velocity.z -= velocity.z * 1.0 * delta;
   velocity.y -= 9.8 * delta;
-  console.log(velocity);
   yawObject.position.add(velocity.clone().multiplyScalar(delta));
+
+
+  if (controls.fire) {
+    player.fire()
+  }
   render()
 }
 

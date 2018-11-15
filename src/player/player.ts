@@ -1,6 +1,9 @@
-import {Object3D} from 'three';
+import {Object3D, Scene, Vector3, Quaternion} from 'three';
+import Projectile from '../projectile/projectile';
 
 var PI_2 = Math.PI / 2;
+
+const vector3Zero = new Vector3();
 
 const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
 const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
@@ -12,9 +15,12 @@ export default class Player {
   object: Object3D
   pitchObject: Object3D
   camera: Object3D
-  constructor(document: Document, camera: Object3D) {
+  scene: Scene
+  projectiles: Array<Projectile>
+  constructor(document: Document, scene: Scene, camera: Object3D) {
 
     this.document = document;
+    this.scene = scene;
     this.camera = camera;
 
 	  this.plElement = document.body;
@@ -27,6 +33,8 @@ export default class Player {
 
 	  this.object = new Object3D();
     this.object.add(this.pitchObject);
+
+    this.projectiles = [];
   }
 
   onMouseMove( event ) {
@@ -65,5 +73,17 @@ export default class Player {
     this.document.removeEventListener( 'mousemove', e => this.onMouseMove(e), false );
     this.document.removeEventListener( 'pointerlockchange', e => this.onPointerlockChange(), false );
     this.document.removeEventListener( 'pointerlockerror', e => this.onPointerlockError(), false );
-	};
+  };
+
+  fire() {
+    var projectile = new Projectile(this.object.position, this.camera.getWorldQuaternion(new Quaternion()))
+    this.scene.add(projectile.object)
+    this.projectiles.push(projectile)
+  }
+
+  update(delta: number) {
+    for (let projectile of this.projectiles) {
+      projectile.update(delta)
+    }
+  }
 };
