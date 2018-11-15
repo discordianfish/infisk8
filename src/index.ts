@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Player from './player/player';
 import {lockPointer} from './lock_pointer';
-import {newTerrain} from './terrain';
+import Terrain from './terrain/terrain';
 import Controls from './controls';
 
 // TBH, I have no idea what I'm doing here. Needed for node upgrade. Probably
@@ -53,25 +53,25 @@ let light2 = new THREE.DirectionalLight(0xffffff, 1.0)
 light2.position.set(-100, 100, -100)
 scene.add(light2)
 
-let material = new THREE.MeshBasicMaterial({
-	color: 0xaaaaaa,
-	wireframe: true
-})
-
 let raycaster = new THREE.Raycaster(); // new THREE.Vector3(), new THREE.Vector3( 0, -1, 0 ), 0, 10 );
 
 const size = 1000;
-let terrain = new THREE.Mesh(newTerrain(size, size, size/5, size/5), material);
-terrain.rotation.x = -Math.PI/2;
+/*
+ * let terrain = new THREE.Mesh(newTerrain(size, size, size/5, size/5), material);
+terrain.rotation.x = -Math.PI/2;*/
 
-scene.add(terrain)
+let terrain = new Terrain(size, size, size/5, size/5)
+terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
+scene.add(terrain.mesh)
+
+render();
 
 var rayOffset = 100;
 var rayOrigin = new THREE.Vector3().copy(yawObject.position)
 rayOrigin.y += rayOffset;
 raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
 
-var intersections = raycaster.intersectObject(terrain);
+var intersections = raycaster.intersectObject(terrain.mesh);
 if (intersections.length == 0) {
   console.log("Couldn't find ground, spawning at default level");
   yawObject.position.y = 100;
@@ -90,7 +90,7 @@ function groundCheck(delta): number {
   raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0))
 
   var groundLevel;
-  var intersections = raycaster.intersectObject(terrain);
+  var intersections = raycaster.intersectObject(terrain.mesh);
   if (intersections.length > 0) {
     groundLevel = intersections[0].point.y;
 
