@@ -9,7 +9,7 @@ export default class Controls {
   canJump: boolean
   jump: boolean
 
-  constructor(blocker: HTMLElement, instructions: HTMLElement, controls) {
+  constructor(blocker: HTMLElement, instructions: HTMLElement) {
     this.moveForward = false;
     this.moveLeft = false;
     this.moveRight = false;
@@ -24,7 +24,6 @@ export default class Controls {
   }
 
   onKeyDown ( event ) {
-    // console.log("key event", event, " controls:", this);
 		switch ( event.keyCode ) {
 
 			case 38: // up

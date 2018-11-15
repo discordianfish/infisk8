@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {PointerLockControls} from 'three/examples/js/controls/PointerLockControls';
+import Player from './player/player';
 import {lockPointer} from './lock_pointer';
 import {newTerrain} from './terrain';
 import Controls from './controls';
@@ -30,13 +30,14 @@ function onWindowResize(){
 }
 
 // const controls = new OrbitControls(camera, renderer.domElement);
-const plc = new PointerLockControls(camera);
-const yawObject = plc.getObject();
+const player = new Player(document, camera);
+const yawObject = player.object;
 scene.add(yawObject);
+player.addEventListeners();
 
-lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), plc)
+lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), player)
 
-const controls = new Controls(document.getElementById('blocker'), document.getElementById('instructions'), plc)
+const controls = new Controls(document.getElementById('blocker'), document.getElementById('instructions'))
 
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
@@ -118,7 +119,7 @@ function groundCheck(delta): number {
 var prevTime = performance.now();
 function animate(): void {
   requestAnimationFrame(animate);
-  if (!plc.enabled) {
+  if (!player.isLocked) {
     return
   }
 
