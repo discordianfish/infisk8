@@ -18,10 +18,15 @@ export default class Player {
   pitchObject: Object3D
   scene: Scene
   projectiles: Array<Projectile>
-  constructor(document: Document, game: Game) {
 
+  cooldown: number
+  lastFired: number
+  constructor(document: Document, game: Game) {
     this.document = document;
     this.game = game;
+
+    this.cooldown = 1000;
+    this.lastFired = performance.now();
 
 	  this.plElement = document.body;
 	  this.isLocked = false;
@@ -76,6 +81,12 @@ export default class Player {
   };
 
   fire() {
+    let now = performance.now();
+    if (now - this.lastFired < this.cooldown) {
+      // console.log("Weapon cooldown", this.lastFired - now)
+      return
+    }
+    this.lastFired = now;
     var projectile = new Projectile(this.game, this.object.position, this.game.camera.getWorldQuaternion(new Quaternion()))
     this.game.scene.add(projectile.object)
     this.projectiles.push(projectile)
@@ -88,7 +99,7 @@ export default class Player {
         projectiles.push(projectile)
       }
     }
-    console.log("Number of active projectiles: ", projectiles.length)
+    // console.log("Number of active projectiles: ", projectiles.length)
     this.projectiles = projectiles;
   }
 };
