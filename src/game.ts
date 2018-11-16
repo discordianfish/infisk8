@@ -16,6 +16,7 @@ import {
   Matrix3,
   ArrowHelper,
   Renderer,
+  Quaternion,
 } from 'three';
 
 import Player from './player/player';
@@ -23,6 +24,7 @@ import {lockPointer} from './lock_pointer';
 import Terrain from './terrain/terrain';
 import Controls from './controls';
 
+const vectorDown = new Vector3(0, -1, 0);
 
 export default class Game {
   window: Window
@@ -43,14 +45,9 @@ export default class Game {
     this.debug = debug
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
-    this.renderer = new WebGLRenderer();
-
-    this.player = new Player(document, this.scene, this.camera);
-    this.scene.add(this.player.object)
-    this.player.addEventListeners();
-    this.addEventListeners();
-
-    lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player)
+    let renderer = new WebGLRenderer()
+    renderer.setClearColor(0xdead23);
+    this.renderer = renderer;
 
     this.controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
 
@@ -75,17 +72,38 @@ export default class Game {
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
     this.render()
+
+    this.player = new Player(document, this);
+    this.scene.add(this.player.object)
+    this.player.addEventListeners();
+    this.addEventListeners();
+
+    lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player)
+
+
     this.player.object.position.y = this.findGround(this.player.object.position)
 
     this.velocity = new Vector3();
     this.prevTime = performance.now();
   }
 
+  // returns true if hit is registered.
+  registerHit(position: Vector3, rotation: Quaternion): boolean {
+    let far = this.raycaster.far;
+    this.raycaster.far = 1;
+    this.raycaster.set(position, vectorDown);
+    let intersections = this.raycaster.intersectObjects([this.terrain.mesh]);
+    this.raycaster.far = far;
+    if (intersections.length == 0) {
+      return
+    }
+    return true
+  }
   findGround(position: Vector3): number {
     var rayOffset = 100;
     var rayOrigin = new Vector3().copy(position)
     rayOrigin.y += rayOffset;
-    this.raycaster.set(rayOrigin, new Vector3(0, -1, 0))
+    this.raycaster.set(rayOrigin, vectorDown)
 
     var intersections = this.raycaster.intersectObject(this.terrain.mesh);
     if (intersections.length == 0) {

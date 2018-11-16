@@ -1,5 +1,6 @@
 import {Object3D, Scene, Vector3, Quaternion} from 'three';
 import Projectile from '../projectile/projectile';
+import Game from '../game';
 
 var PI_2 = Math.PI / 2;
 
@@ -10,26 +11,25 @@ const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
 
 export default class Player {
   document: Document
+  game: Game
   plElement: HTMLElement
   isLocked: boolean
   object: Object3D
   pitchObject: Object3D
-  camera: Object3D
   scene: Scene
   projectiles: Array<Projectile>
-  constructor(document: Document, scene: Scene, camera: Object3D) {
+  constructor(document: Document, game: Game) {
 
     this.document = document;
-    this.scene = scene;
-    this.camera = camera;
+    this.game = game;
 
 	  this.plElement = document.body;
 	  this.isLocked = false;
 
-	  this.camera.rotation.set( 0, 0, 0 );
+	  game.camera.rotation.set( 0, 0, 0 );
 
 	  this.pitchObject = new Object3D();
-	  this.pitchObject.add( camera );
+	  this.pitchObject.add(game.camera);
 
 	  this.object = new Object3D();
     this.object.add(this.pitchObject);
@@ -76,8 +76,8 @@ export default class Player {
   };
 
   fire() {
-    var projectile = new Projectile(this.object.position, this.camera.getWorldQuaternion(new Quaternion()))
-    this.scene.add(projectile.object)
+    var projectile = new Projectile(this.game, this.object.position, this.game.camera.getWorldQuaternion(new Quaternion()))
+    this.game.scene.add(projectile.object)
     this.projectiles.push(projectile)
   }
 

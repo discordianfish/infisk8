@@ -1,3 +1,6 @@
+const webpack = require('webpack');
+const path = require('path');
+
 /* Configure HTMLWebpack plugin */
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const HTMLWebpackPluginConfig = new HtmlWebpackPlugin({
@@ -22,6 +25,10 @@ const ProgressBarPluginConfig = new ProgressBarPlugin()
 
 const ThreeWebpackPlugin = require('@wildpeaks/three-webpack-plugin');
 const ThreeWebpackPluginConfig = new ThreeWebpackPlugin()
+
+const ProvidePlugin = new webpack.ProvidePlugin({
+  THREE: 'three',
+});
 
 /* Export configuration */
 module.exports = {
@@ -70,9 +77,17 @@ module.exports = {
                         }
                     }
                 ]
+            }, {
+        			test: /\.(glsl|vs|fs)$/,
+        			loader: 'shader-loader',
+        			options: {
+        			  glsl: {
+        			    chunkPath: path.resolve("/glsl/chunks")
+        			  }
+        			}
             }
         ]
     },
     resolve: { extensions: [".web.ts", ".web.js", ".ts", ".js"] },
-    plugins: [HTMLWebpackPluginConfig, BrowserSyncPluginConfig, ProgressBarPluginConfig, ThreeWebpackPluginConfig]
+    plugins: [HTMLWebpackPluginConfig, BrowserSyncPluginConfig, ProgressBarPluginConfig, ThreeWebpackPluginConfig, ProvidePlugin]
 }
