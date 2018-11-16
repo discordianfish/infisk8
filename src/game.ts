@@ -88,16 +88,24 @@ export default class Game {
   }
 
   // returns true if hit is registered.
-  registerHit(position: Vector3, rotation: Quaternion): boolean {
-    let far = this.raycaster.far;
-    this.raycaster.far = 1;
-    this.raycaster.set(position, vectorDown);
-    let intersections = this.raycaster.intersectObjects([this.terrain.mesh]);
-    this.raycaster.far = far;
-    if (intersections.length == 0) {
-      return
+  registerHit(object: Object3D): boolean {
+    let position = object.getWorldPosition(new Vector3())
+    let direction = object.getWorldDirection(new Vector3()).negate()
+    // console.log("projectile world pos", position);
+
+    //let far = this.raycaster.far;
+    //this.raycaster.far = 1;
+    this.raycaster.set(position, direction);
+    if (this.debug) {
+      this.scene.add(new ArrowHelper(direction, position, 10, 0x00ffff));
     }
-    return true
+
+    let intersections = this.raycaster.intersectObjects([this.terrain.mesh]);
+    // this.raycaster.far = far;
+    if (intersections.length == 0) {
+      return false
+    }
+    return intersections[0].distance < 5
   }
   findGround(position: Vector3): number {
     var rayOffset = 100;

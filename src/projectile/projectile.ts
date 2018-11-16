@@ -60,7 +60,7 @@ export default class Projectile {
       return true
     }
     this.object.translateZ(-this.speed * delta);
-    if (this.game.registerHit(this.object.position, this.object.quaternion)) {
+    if (this.game.registerHit(this.object)) {
       this.explode()
     }
     return false
