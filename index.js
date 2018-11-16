@@ -3731,6 +3731,876 @@ exports.default = OpenSimplexNoise;
 
 /***/ }),
 
+/***/ "./node_modules/three-gpu-particle-system/src/js/constants.js":
+/*!********************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/js/constants.js ***!
+  \********************************************************************/
+/*! exports provided: CORNERS_, createDefaultClock_, POSITION_START_TIME_IDX, UV_LIFE_TIME_FRAME_START_IDX, VELOCITY_START_SIZE_IDX, ACCELERATION_END_SIZE_IDX, SPIN_START_SPIN_SPEED_IDX, ORIENTATION_IDX, COLOR_MULT_IDX, LAST_IDX, singleParticleArray_ */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "CORNERS_", function() { return CORNERS_; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "createDefaultClock_", function() { return createDefaultClock_; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "POSITION_START_TIME_IDX", function() { return POSITION_START_TIME_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "UV_LIFE_TIME_FRAME_START_IDX", function() { return UV_LIFE_TIME_FRAME_START_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "VELOCITY_START_SIZE_IDX", function() { return VELOCITY_START_SIZE_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ACCELERATION_END_SIZE_IDX", function() { return ACCELERATION_END_SIZE_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "SPIN_START_SPIN_SPEED_IDX", function() { return SPIN_START_SPIN_SPEED_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ORIENTATION_IDX", function() { return ORIENTATION_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "COLOR_MULT_IDX", function() { return COLOR_MULT_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "LAST_IDX", function() { return LAST_IDX; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "singleParticleArray_", function() { return singleParticleArray_; });
+// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js
+// ported to three.js by fazeaction
+
+var CORNERS_ = [
+
+	[ - 0.5, - 0.5 ],
+	[ + 0.5, - 0.5 ],
+	[ + 0.5, + 0.5 ],
+	[ - 0.5, + 0.5 ]
+
+];
+
+function createDefaultClock_ ( particleSystem ) {
+
+	return function () {
+
+		var now = particleSystem.now_;
+		var base = particleSystem.timeBase_;
+
+		return ( now.getTime() - base.getTime() ) / 1000.0;
+
+	}
+
+}
+
+var POSITION_START_TIME_IDX = 0;
+var UV_LIFE_TIME_FRAME_START_IDX = 4;
+var VELOCITY_START_SIZE_IDX = 8;
+var ACCELERATION_END_SIZE_IDX = 12;
+var SPIN_START_SPIN_SPEED_IDX = 16;
+var ORIENTATION_IDX = 20;
+var COLOR_MULT_IDX = 24;
+var LAST_IDX = 28;
+var singleParticleArray_ = new Float32Array( 4 * LAST_IDX );
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/js/emitter.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/js/emitter.js ***!
+  \******************************************************************/
+/*! exports provided: ParticleEmitter */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* WEBPACK VAR INJECTION */(function(THREE) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ParticleEmitter", function() { return ParticleEmitter; });
+/* harmony import */ var _constants_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./constants.js */ "./node_modules/three-gpu-particle-system/src/js/constants.js");
+/* harmony import */ var _particle_spec_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./particle-spec.js */ "./node_modules/three-gpu-particle-system/src/js/particle-spec.js");
+/* harmony import */ var _one_shot_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./one-shot.js */ "./node_modules/three-gpu-particle-system/src/js/one-shot.js");
+/* harmony import */ var _shaders_particles_billboard_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./../shaders/particles-billboard-instanced_vs.glsl */ "./node_modules/three-gpu-particle-system/src/shaders/particles-billboard-instanced_vs.glsl");
+/* harmony import */ var _shaders_particles_billboard_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_shaders_particles_billboard_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _shaders_particles_oriented_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./../shaders/particles-oriented-instanced_vs.glsl */ "./node_modules/three-gpu-particle-system/src/shaders/particles-oriented-instanced_vs.glsl");
+/* harmony import */ var _shaders_particles_oriented_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(_shaders_particles_oriented_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var _shaders_particles_fs_glsl__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./../shaders/particles_fs.glsl */ "./node_modules/three-gpu-particle-system/src/shaders/particles_fs.glsl");
+/* harmony import */ var _shaders_particles_fs_glsl__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(_shaders_particles_fs_glsl__WEBPACK_IMPORTED_MODULE_5__);
+// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js
+// ported to three.js by fazeaction
+
+
+
+
+
+
+
+
+function ParticleEmitter ( particleSystem, opt_texture, opt_clock ) {
+
+	THREE.Mesh.call( this );
+
+	opt_clock = opt_clock || particleSystem.timeSource_;
+
+	//TODO make alternative to instanced buffer
+	//this.particleBuffer_ = new THREE.BufferGeometry();
+	//this.indexBuffer_ = [];
+
+	this.particleBuffer_ = new THREE.InstancedBufferGeometry();
+	this.interleavedBuffer = new THREE.InterleavedBuffer();
+
+	this.numParticles_ = 0;
+
+	this.rampTexture_ = particleSystem.defaultRampTexture;
+	this.colorTexture_ = opt_texture || particleSystem.defaultColorTexture;
+
+	this.particleSystem = particleSystem;
+
+	this.timeSource_ = opt_clock;
+
+	this.setState( THREE.NormalBlending );
+
+};
+
+ParticleEmitter.prototype = Object.create( THREE.Mesh.prototype );
+
+ParticleEmitter.prototype.constructor = ParticleEmitter;
+
+ParticleEmitter.prototype.setTranslation = function ( x, y, z ) {
+
+        this.position.x = x;
+        this.position.y = y;
+        this.position.z = z;
+
+};
+
+ParticleEmitter.prototype.setState = function ( stateId ) {
+
+        this.blendFunc_ = stateId;
+
+};
+
+ParticleEmitter.prototype.setColorRamp = function ( colorRamp ) {
+
+	var width = colorRamp.length / 4;
+	if (width % 1 != 0) {
+
+		throw 'colorRamp must have multiple of 4 entries';
+
+	}
+
+	if (this.rampTexture_ == this.particleSystem.defaultRampTexture) {
+
+		this.rampTexture_ = null;
+
+	}
+
+	this.rampTexture_ = this.particleSystem.createTextureFromFloats( width, 1, colorRamp, this.rampTexture_ );
+
+};
+
+ParticleEmitter.prototype.validateParameters = function ( parameters ) {
+
+	var defaults = new _particle_spec_js__WEBPACK_IMPORTED_MODULE_1__["ParticleSpec"]();
+
+	for ( var key in parameters ) {
+
+		if ( typeof defaults[ key ] === 'undefined' ) {
+
+			throw 'unknown particle parameter "' + key + '"';
+
+		}
+
+	}
+
+	for ( var key in defaults ) {
+
+		if ( typeof parameters[ key ] === 'undefined' ) {
+
+			parameters[ key ] = defaults[ key ];
+
+		}
+
+	}
+
+};
+
+ParticleEmitter.prototype.createParticles_ = function( firstParticleIndex, numParticles, parameters, opt_perParticleParamSetter ) {
+
+    var interleaveBufferData = this.interleavedBuffer.array;
+
+    this.billboard_ = parameters.billboard;
+
+    var random = this.particleSystem.randomFunction_;
+
+    var plusMinus = function ( range ) {
+
+        return ( random() - 0.5 ) * range * 2;
+
+    };
+
+    // TODO: change to not allocate.
+    var plusMinusVector = function ( range ) {
+
+        var v = [];
+
+        for (var ii = 0; ii < range.length; ++ ii) {
+
+            v.push( plusMinus( range[ ii ] ) );
+
+        }
+
+        return v;
+
+    };
+
+    for ( var ii = 0; ii < numParticles; ++ ii ) {
+
+        if ( opt_perParticleParamSetter ) {
+
+            opt_perParticleParamSetter( ii, parameters );
+
+        }
+
+        var pLifeTime = parameters.lifeTime;
+        var pStartTime = ( parameters.startTime === null ) ? ( ii * parameters.lifeTime / numParticles ) : parameters.startTime;
+        var pFrameStart = parameters.frameStart + plusMinus(parameters.frameStartRange);
+        var pPosition = new THREE.Vector3().addVectors( new THREE.Vector3().fromArray(parameters.position), new THREE.Vector3().fromArray(plusMinusVector(parameters.positionRange)));
+        var pVelocity = new THREE.Vector3().addVectors( new THREE.Vector3().fromArray(parameters.velocity), new THREE.Vector3().fromArray(plusMinusVector(parameters.velocityRange)));
+        var pAcceleration = new THREE.Vector3().addVectors( new THREE.Vector3().fromArray(parameters.acceleration), new THREE.Vector3().fromArray( plusMinusVector( parameters.accelerationRange )));
+        var pColorMult = new THREE.Vector4().addVectors( new THREE.Vector4().fromArray(parameters.colorMult), new THREE.Vector4().fromArray(plusMinusVector( parameters.colorMultRange )));
+        var pSpinStart = parameters.spinStart + plusMinus(parameters.spinStartRange);
+        var pSpinSpeed = parameters.spinSpeed + plusMinus(parameters.spinSpeedRange);
+        var pStartSize = parameters.startSize + plusMinus(parameters.startSizeRange);
+        var pEndSize = parameters.endSize + plusMinus(parameters.endSizeRange);
+        var pOrientation = new THREE.Vector4().fromArray(parameters.orientation);
+
+        for (var jj = 0; jj < 1; ++jj) {
+
+            var offset0 = _constants_js__WEBPACK_IMPORTED_MODULE_0__["LAST_IDX"] * jj + ( ii * _constants_js__WEBPACK_IMPORTED_MODULE_0__["LAST_IDX"] * 4 ) + ( firstParticleIndex * _constants_js__WEBPACK_IMPORTED_MODULE_0__["LAST_IDX"] * 4 );
+            var offset1 = offset0 + 1;
+            var offset2 = offset0 + 2;
+            var offset3 = offset0 + 3;
+
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["POSITION_START_TIME_IDX"] + offset0] = pPosition.x;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["POSITION_START_TIME_IDX"] + offset1] = pPosition.y;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["POSITION_START_TIME_IDX"] + offset2] = pPosition.z;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["POSITION_START_TIME_IDX"] + offset3] = pStartTime;
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["UV_LIFE_TIME_FRAME_START_IDX"] + offset0] = _constants_js__WEBPACK_IMPORTED_MODULE_0__["CORNERS_"][jj][0];
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["UV_LIFE_TIME_FRAME_START_IDX"] + offset1] = _constants_js__WEBPACK_IMPORTED_MODULE_0__["CORNERS_"][jj][1];
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["UV_LIFE_TIME_FRAME_START_IDX"] + offset2] = pLifeTime;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["UV_LIFE_TIME_FRAME_START_IDX"] + offset3] = pFrameStart;
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["VELOCITY_START_SIZE_IDX"] + offset0] = pVelocity.x;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["VELOCITY_START_SIZE_IDX"] + offset1] = pVelocity.y;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["VELOCITY_START_SIZE_IDX"] + offset2] = pVelocity.z;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["VELOCITY_START_SIZE_IDX"] + offset3] = pStartSize;
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ACCELERATION_END_SIZE_IDX"] + offset0] = pAcceleration.x;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ACCELERATION_END_SIZE_IDX"] + offset1] = pAcceleration.y;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ACCELERATION_END_SIZE_IDX"] + offset2] = pAcceleration.z;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ACCELERATION_END_SIZE_IDX"] + offset3] = pEndSize;
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["SPIN_START_SPIN_SPEED_IDX"] + offset0] = pSpinStart;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["SPIN_START_SPIN_SPEED_IDX"] + offset1] = pSpinSpeed;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["SPIN_START_SPIN_SPEED_IDX"] + offset2] = 0;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["SPIN_START_SPIN_SPEED_IDX"] + offset3] = 0;
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ORIENTATION_IDX"] + offset0] = pOrientation.x;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ORIENTATION_IDX"] + offset1] = pOrientation.y;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ORIENTATION_IDX"] + offset2] = pOrientation.z;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["ORIENTATION_IDX"] + offset3] = pOrientation.w;
+
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["COLOR_MULT_IDX"] + offset0] = pColorMult.x;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["COLOR_MULT_IDX"] + offset1] = pColorMult.y;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["COLOR_MULT_IDX"] + offset2] = pColorMult.z;
+            interleaveBufferData[_constants_js__WEBPACK_IMPORTED_MODULE_0__["COLOR_MULT_IDX"] + offset3] = pColorMult.w;
+
+        }
+
+    }
+
+    this.interleavedBuffer.needsUpdate = true;
+
+    this.material.uniforms.worldVelocity.value = new THREE.Vector3(parameters.worldVelocity[0], parameters.worldVelocity[1], parameters.worldVelocity[2]);
+    this.material.uniforms.worldAcceleration.value = new THREE.Vector3(parameters.worldAcceleration[0], parameters.worldAcceleration[1], parameters.worldAcceleration[2]);
+    this.material.uniforms.timeRange.value = parameters.timeRange;
+    this.material.uniforms.frameDuration.value = parameters.frameDuration;
+    this.material.uniforms.numFrames.value = parameters.numFrames;
+    this.material.uniforms.rampSampler.value = this.rampTexture_;
+    this.material.uniforms.colorSampler.value = this.colorTexture_;
+
+    this.material.blending = this.blendFunc_;
+
+};
+
+ParticleEmitter.prototype.allocateParticles_ = function ( numParticles, parameters ) {
+
+	if ( this.numParticles_ != numParticles ) {
+
+        var numIndices = 6 * numParticles;
+
+		if (numIndices > 65536 && THREE.BufferGeometry.MaxIndex < 65536) {
+
+			throw "can't have more than 10922 particles per emitter";
+
+		}
+
+		var vertexBuffer = new THREE.InterleavedBuffer( new Float32Array([
+			// Front
+			0, 0, 0, 0, -0.5, -0.5, 0, 0,
+			0, 0, 0, 0, 0.5, -0.5, 0, 0,
+			0, 0, 0, 0, 0.5, 0.5, 0, 0,
+			0, 0, 0, 0, -0.5, 0.5, 0, 0
+		]), 8);
+
+
+		// Use vertexBuffer, starting at offset 0, 3 items in position attribute
+		var positions = new THREE.InterleavedBufferAttribute( vertexBuffer, 3, 0 );
+		this.particleBuffer_.addAttribute( 'position', positions );
+		// Use vertexBuffer, starting at offset 4, 2 items in uv attribute
+		var uvs = new THREE.InterleavedBufferAttribute( vertexBuffer, 2, 4 );
+		this.particleBuffer_.addAttribute( 'uv', uvs );
+
+		var indices = new Uint16Array([
+
+			0, 1, 2,
+			0, 2, 3
+
+		]);
+
+		this.particleBuffer_.setIndex( new THREE.BufferAttribute( indices, 1 ) );
+
+		this.numParticles_ = numParticles;
+		this.interleavedBuffer = new THREE.InstancedInterleavedBuffer( new Float32Array( numParticles * _constants_js__WEBPACK_IMPORTED_MODULE_0__["singleParticleArray_"].byteLength ), _constants_js__WEBPACK_IMPORTED_MODULE_0__["LAST_IDX"], 1 ).setDynamic( true );
+
+		this.particleBuffer_.addAttribute( 'position', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 3, _constants_js__WEBPACK_IMPORTED_MODULE_0__["POSITION_START_TIME_IDX"]));
+		this.particleBuffer_.addAttribute( 'startTime', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 1, 3));
+		this.particleBuffer_.addAttribute( 'uvLifeTimeFrameStart', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 4, _constants_js__WEBPACK_IMPORTED_MODULE_0__["UV_LIFE_TIME_FRAME_START_IDX"]));
+		this.particleBuffer_.addAttribute( 'velocityStartSize', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 4, _constants_js__WEBPACK_IMPORTED_MODULE_0__["VELOCITY_START_SIZE_IDX"]));
+		this.particleBuffer_.addAttribute( 'accelerationEndSize', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 4, _constants_js__WEBPACK_IMPORTED_MODULE_0__["ACCELERATION_END_SIZE_IDX"]));
+		this.particleBuffer_.addAttribute( 'spinStartSpinSpeed', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 4, _constants_js__WEBPACK_IMPORTED_MODULE_0__["SPIN_START_SPIN_SPEED_IDX"]));
+		this.particleBuffer_.addAttribute( 'orientation', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 4, _constants_js__WEBPACK_IMPORTED_MODULE_0__["ORIENTATION_IDX"]));
+		this.particleBuffer_.addAttribute( 'colorMult', new THREE.InterleavedBufferAttribute(this.interleavedBuffer, 4, _constants_js__WEBPACK_IMPORTED_MODULE_0__["COLOR_MULT_IDX"]));
+
+		//TODO Fix boundingSphere
+		this.particleBuffer_.boundingSphere = new THREE.Sphere();
+
+		var uniforms = {
+
+			//world: { type: 'm4', value: this.matrixWorld },
+			viewInverse: { type: 'm4', value: this.particleSystem.camera.matrixWorld },
+			worldVelocity: { type: 'v3', value: null },
+			worldAcceleration: { type: 'v3', value: null },
+			timeRange: { type: 'f', value: null },
+			time: { type: 'f', value: null },
+			timeOffset: { type: 'f', value: null },
+			frameDuration: { type: 'f', value: null },
+			numFrames: { type: 'f', value: null },
+			rampSampler: { type: "t", value: this.rampTexture_ },
+			colorSampler: { type: "t", value: this.colorTexture_ }
+
+		};
+
+		var material = new THREE.ShaderMaterial({
+
+			uniforms: uniforms,
+			vertexShader: ( parameters.billboard ) ? _shaders_particles_billboard_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_3___default.a : _shaders_particles_oriented_instanced_vs_glsl__WEBPACK_IMPORTED_MODULE_4___default.a,
+			fragmentShader: _shaders_particles_fs_glsl__WEBPACK_IMPORTED_MODULE_5___default.a,
+			side: (this.billboard_)? THREE.DoubleSide:THREE.FrontSide,
+			blending: this.blendFunc_,
+			depthTest: true,
+			depthWrite: false,
+			transparent: true
+
+		});
+
+
+		this.geometry = this.particleBuffer_;
+		this.material = material;
+
+	}
+
+};
+
+ParticleEmitter.prototype.setParameters = function ( parameters, opt_perParticleParamSetter ) {
+
+	this.validateParameters ( parameters );
+
+	var numParticles = parameters.numParticles;
+
+	this.allocateParticles_ ( numParticles, parameters );
+	this.createParticles_ ( 0, numParticles, parameters, opt_perParticleParamSetter );
+
+};
+
+ParticleEmitter.prototype.draw = function ( world, viewProjection, timeOffset ) {
+
+	var uniforms = this.material.uniforms;
+
+	uniforms.time.value = this.timeSource_();
+	uniforms.timeOffset.value = timeOffset;
+
+};
+
+ParticleEmitter.prototype.createOneShot = function () {
+
+	return new _one_shot_js__WEBPACK_IMPORTED_MODULE_2__["OneShot"]( this, this.particleSystem.scene );
+
+};
+
+ParticleEmitter.prototype.clone = function ( object ) {
+
+	if ( object === undefined ) object = this.particleSystem.createParticleEmitter( this.colorTexture_, this.timeSource_);
+
+	object.geometry = this.geometry;
+	object.material = this.material.clone();
+	object.material.uniforms.viewInverse.value = this.particleSystem.camera.matrixWorld;
+	object.material.uniforms.rampSampler.value = this.rampTexture_;
+	object.material.uniforms.colorSampler.value = this.colorTexture_;
+
+	THREE.Mesh.prototype.clone.call( this, object );
+
+	return object;
+
+};
+
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js")))
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/js/one-shot.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/js/one-shot.js ***!
+  \*******************************************************************/
+/*! exports provided: OneShot */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* WEBPACK VAR INJECTION */(function(THREE) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "OneShot", function() { return OneShot; });
+// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js
+// ported to three.js by fazeaction
+
+function OneShot( emitter, scene ) {
+
+	THREE.Mesh.call( this );
+	this.emitter_ = emitter.clone();
+	this.scene = scene;
+
+	this.world_ = new THREE.Matrix4();
+	this.tempWorld_ = new THREE.Matrix4();
+	this.timeOffset_ = 0;
+	this.visible_ = false;
+
+	// Remove the parent emitter from the particle system's drawable
+	// list (if it's still there) and add ourselves instead.
+	var particleSystem = emitter.particleSystem;
+	var idx = particleSystem.drawables_.indexOf( this.emitter_ );
+	if ( idx >= 0 ) {
+
+		particleSystem.drawables_.splice( idx, 1 );
+
+	}
+
+	particleSystem.drawables_.push( this );
+
+}
+
+OneShot.prototype = Object.create( THREE.Mesh.prototype );
+
+OneShot.prototype.constructor = OneShot;
+
+
+OneShot.prototype.trigger = function ( opt_world ) {
+
+	if ( ! this.visible_ ) {
+
+		this.scene.add( this.emitter_ );
+
+	}
+	if ( opt_world ) {
+
+        this.emitter_.position.copy( new THREE.Vector3().fromArray( opt_world ) );
+
+	}
+	this.visible_ = true;
+	this.timeOffset_ = this.emitter_.timeSource_();
+
+};
+
+OneShot.prototype.draw = function ( world, viewProjection, timeOffset ) {
+
+	if ( this.visible_ ) {
+
+		//this.tempWorld_.multiplyMatrices(this.world_, world);
+		this.emitter_.draw( this.world_, viewProjection, this.timeOffset_ );
+
+	}
+
+};
+
+
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js")))
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/js/particle-spec.js":
+/*!************************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/js/particle-spec.js ***!
+  \************************************************************************/
+/*! exports provided: ParticleSpec */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ParticleSpec", function() { return ParticleSpec; });
+// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js
+// ported to three.js by fazeaction
+
+function ParticleSpec () {
+
+	this.numParticles = 1;
+
+	this.numFrames = 1;
+
+	this.frameDuration = 1;
+
+	this.frameStart = 0;
+
+	this.frameStartRange = 0;
+
+	this.timeRange = 99999999;
+
+	this.startTime = null;
+
+	this.lifeTime = 1;
+
+	this.lifeTimeRange = 0;
+
+	this.startSize = 1;
+
+	this.startSizeRange = 0;
+
+	this.endSize = 1;
+
+	this.endSizeRange = 0;
+
+	this.position = [ 0, 0, 0 ];
+
+	this.positionRange = [ 0, 0, 0 ];
+
+	this.velocity = [ 0, 0, 0 ];
+
+	this.velocityRange = [ 0, 0, 0 ];
+
+	this.acceleration = [ 0, 0, 0 ];
+
+	this.accelerationRange = [ 0, 0, 0 ];
+
+	this.spinStart = 0;
+
+	this.spinStartRange = 0;
+
+	this.spinSpeed = 0;
+
+	this.spinSpeedRange = 0;
+
+	this.colorMult = [ 1, 1, 1, 1 ];
+
+	this.colorMultRange = [ 0, 0, 0, 0 ];
+
+	this.worldVelocity = [ 0, 0, 0 ];
+
+	this.worldAcceleration = [ 0, 0, 0 ];
+
+	this.billboard = true;
+
+	this.orientation = [ 0, 0, 0, 1 ];
+
+}
+
+
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/js/particle-system.js":
+/*!**************************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/js/particle-system.js ***!
+  \**************************************************************************/
+/*! exports provided: ParticleSystem */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* WEBPACK VAR INJECTION */(function(THREE) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ParticleSystem", function() { return ParticleSystem; });
+/* harmony import */ var _constants_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./constants.js */ "./node_modules/three-gpu-particle-system/src/js/constants.js");
+/* harmony import */ var _emitter__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./emitter */ "./node_modules/three-gpu-particle-system/src/js/emitter.js");
+/* harmony import */ var _trail__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./trail */ "./node_modules/three-gpu-particle-system/src/js/trail.js");
+// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js
+// ported to three.js by fazeaction
+
+
+
+
+
+function ParticleSystem ( scene, camera, opt_clock, opt_randomFunction ) {
+
+	this.scene = scene;
+	this.camera = camera;
+
+	this.drawables_ = [];
+
+	var pixelBase = [ 0, 0.20, 0.70, 1, 0.70, 0.20, 0, 0 ];
+	var pixels = [];
+
+	for ( var yy = 0; yy < 8; ++ yy ) {
+
+		for ( var xx = 0; xx < 8; ++ xx ) {
+
+			var pixel = pixelBase[ xx ] * pixelBase[ yy ];
+			pixels.push( pixel, pixel, pixel, pixel );
+
+		}
+
+	}
+
+	var colorTexture = this.createTextureFromFloats( 8, 8, pixels );
+	var rampTexture = this.createTextureFromFloats( 2, 1, [ 1, 1, 1, 1, 1, 1, 1, 0 ] );
+
+	this.now_ = new Date();
+	this.timeBase_ = new Date();
+
+	if ( opt_clock ) {
+
+		this.timeSource_ = opt_clock;
+
+	} else {
+
+		this.timeSource_ = Object(_constants_js__WEBPACK_IMPORTED_MODULE_0__["createDefaultClock_"])( this );
+
+	}
+
+	this.randomFunction_ = opt_randomFunction || function () {
+
+		return Math.random();
+
+	};
+
+	this.defaultColorTexture = colorTexture;
+	this.defaultRampTexture = rampTexture;
+
+}
+
+ParticleSystem.prototype.createTextureFromFloats = function ( width, height, pixels, opt_texture ) {
+
+	var texture = null;
+	if ( opt_texture != null ) {
+
+		texture = opt_texture;
+
+	} else {
+
+		var data = new Uint8Array( pixels.length );
+		var t;
+		for ( var i = 0; i < pixels.length; i ++ ) {
+
+			t = pixels[ i ] * 255.;
+			data[ i ] = t;
+
+		}
+
+		texture = new THREE.DataTexture( data, width, height, THREE.RGBAFormat );
+		texture.minFilter = THREE.LinearFilter;
+		texture.magFilter = THREE.LinearFilter;
+		texture.needsUpdate = true;
+
+		return texture;
+
+	}
+
+	return texture;
+
+};
+
+ParticleSystem.prototype.createParticleEmitter = function ( opt_texture, opt_clock ) {
+
+	var emitter = new _emitter__WEBPACK_IMPORTED_MODULE_1__["ParticleEmitter"]( this, opt_texture, opt_clock );
+	this.drawables_.push( emitter );
+
+	return emitter;
+
+};
+
+ParticleSystem.prototype.createTrail = function ( maxParticles, parameters, opt_texture, opt_perParticleParamSetter, opt_clock ) {
+
+	var trail = new _trail__WEBPACK_IMPORTED_MODULE_2__["Trail"]( this, maxParticles, parameters, opt_texture, opt_perParticleParamSetter,	opt_clock );
+	this.drawables_.push( trail );
+
+	return trail;
+
+};
+
+ParticleSystem.prototype.draw = function ( viewProjection, world, viewInverse ) {
+
+	this.now_ = new Date();
+
+	for ( var ii = 0; ii < this.drawables_.length; ++ ii ) {
+
+		this.drawables_[ ii ].draw( world, viewProjection, 0 );
+
+	}
+
+};
+
+
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js")))
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/js/trail.js":
+/*!****************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/js/trail.js ***!
+  \****************************************************************/
+/*! exports provided: Trail */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Trail", function() { return Trail; });
+/* harmony import */ var _emitter_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./emitter.js */ "./node_modules/three-gpu-particle-system/src/js/emitter.js");
+// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js
+// ported to three.js by fazeaction
+
+
+
+function Trail ( particleSystem, maxParticles, parameters, opt_texture, opt_perParticleParamSetter, opt_clock ) {
+
+	_emitter_js__WEBPACK_IMPORTED_MODULE_0__["ParticleEmitter"].call( this, particleSystem, opt_texture, opt_clock );
+
+	this.allocateParticles_( maxParticles, parameters );
+	this.validateParameters( parameters );
+
+	this.parameters = parameters;
+	this.perParticleParamSetter = opt_perParticleParamSetter;
+	this.birthIndex_ = 0;
+	this.maxParticles_ = maxParticles;
+
+}
+
+Trail.prototype = Object.create( _emitter_js__WEBPACK_IMPORTED_MODULE_0__["ParticleEmitter"].prototype );
+
+Trail.prototype.constructor = Trail;
+
+Trail.prototype.birthParticles = function ( position ) {
+
+	var numParticles = this.parameters.numParticles;
+	this.parameters.startTime = this.timeSource_();
+	this.parameters.position = position;
+
+	while ( this.birthIndex_ + numParticles >= this.maxParticles_ ) {
+
+		var numParticlesToEnd = this.maxParticles_ - this.birthIndex_;
+
+		this.createParticles_( this.birthIndex_, numParticlesToEnd,	this.parameters, this.perParticleParamSetter );
+		numParticles -= numParticlesToEnd;
+
+		this.birthIndex_ = 0;
+
+	}
+
+	this.createParticles_( this.birthIndex_, numParticles, this.parameters, this.perParticleParamSetter );
+
+	if ( this.birthIndex_ === 0 ) {
+
+		this.particleSystem.scene.add( this );
+
+	}
+
+	this.birthIndex_ += numParticles;
+
+
+};
+
+
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/main.js":
+/*!************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/main.js ***!
+  \************************************************************/
+/*! exports provided: ParticleSpec, ParticleSystem, ParticleEmitter, Trail, OneShot, CORNERS_, createDefaultClock_, POSITION_START_TIME_IDX, UV_LIFE_TIME_FRAME_START_IDX, VELOCITY_START_SIZE_IDX, ACCELERATION_END_SIZE_IDX, SPIN_START_SPIN_SPEED_IDX, ORIENTATION_IDX, COLOR_MULT_IDX, LAST_IDX, singleParticleArray_ */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _js_constants_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./js/constants.js */ "./node_modules/three-gpu-particle-system/src/js/constants.js");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "CORNERS_", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["CORNERS_"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "createDefaultClock_", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["createDefaultClock_"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "POSITION_START_TIME_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["POSITION_START_TIME_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "UV_LIFE_TIME_FRAME_START_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["UV_LIFE_TIME_FRAME_START_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "VELOCITY_START_SIZE_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["VELOCITY_START_SIZE_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "ACCELERATION_END_SIZE_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["ACCELERATION_END_SIZE_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "SPIN_START_SPIN_SPEED_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["SPIN_START_SPIN_SPEED_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "ORIENTATION_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["ORIENTATION_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "COLOR_MULT_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["COLOR_MULT_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "LAST_IDX", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["LAST_IDX"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "singleParticleArray_", function() { return _js_constants_js__WEBPACK_IMPORTED_MODULE_0__["singleParticleArray_"]; });
+
+/* harmony import */ var _js_particle_spec_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./js/particle-spec.js */ "./node_modules/three-gpu-particle-system/src/js/particle-spec.js");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "ParticleSpec", function() { return _js_particle_spec_js__WEBPACK_IMPORTED_MODULE_1__["ParticleSpec"]; });
+
+/* harmony import */ var _js_particle_system_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./js/particle-system.js */ "./node_modules/three-gpu-particle-system/src/js/particle-system.js");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "ParticleSystem", function() { return _js_particle_system_js__WEBPACK_IMPORTED_MODULE_2__["ParticleSystem"]; });
+
+/* harmony import */ var _js_emitter_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./js/emitter.js */ "./node_modules/three-gpu-particle-system/src/js/emitter.js");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "ParticleEmitter", function() { return _js_emitter_js__WEBPACK_IMPORTED_MODULE_3__["ParticleEmitter"]; });
+
+/* harmony import */ var _js_trail_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./js/trail.js */ "./node_modules/three-gpu-particle-system/src/js/trail.js");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "Trail", function() { return _js_trail_js__WEBPACK_IMPORTED_MODULE_4__["Trail"]; });
+
+/* harmony import */ var _js_one_shot_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./js/one-shot.js */ "./node_modules/three-gpu-particle-system/src/js/one-shot.js");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "OneShot", function() { return _js_one_shot_js__WEBPACK_IMPORTED_MODULE_5__["OneShot"]; });
+
+
+
+
+
+
+
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/shaders/particles-billboard-instanced_vs.glsl":
+/*!**************************************************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/shaders/particles-billboard-instanced_vs.glsl ***!
+  \**************************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = "// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js#L154\n\nuniform mat4 viewInverse;\nuniform vec3 worldVelocity;\nuniform vec3 worldAcceleration;\nuniform float timeRange;\nuniform float time;\nuniform float timeOffset;\nuniform float frameDuration;\nuniform float numFrames;\n\n// Incoming vertex attributes\nattribute vec4 uvLifeTimeFrameStart;\nattribute float startTime;\nattribute vec4 velocityStartSize;\nattribute vec4 accelerationEndSize;\nattribute vec4 spinStartSpinSpeed;\nattribute vec4 colorMult;\n\n// Outgoing variables to fragment shader\nvarying vec2 outputTexcoord;\nvarying float outputPercentLife;\nvarying vec4 outputColorMult;\n\nvoid main() {\n    float lifeTime = uvLifeTimeFrameStart.z;\n    float frameStart = uvLifeTimeFrameStart.w;\n    vec3 velocity = (modelMatrix * vec4(velocityStartSize.xyz,\n                                 0.)).xyz + worldVelocity;\n    float startSize = velocityStartSize.w;\n    vec3 acceleration = (modelMatrix * vec4(accelerationEndSize.xyz,\n                                     0)).xyz + worldAcceleration;\n    float endSize = accelerationEndSize.w;\n    float spinStart = spinStartSpinSpeed.x;\n    float spinSpeed = spinStartSpinSpeed.y;\n\n    float localTime = mod((time - timeOffset - startTime), timeRange);\n    float percentLife = localTime / lifeTime;\n\n    float frame = mod(floor(localTime / frameDuration + frameStart),\n                     numFrames);\n    float uOffset = frame / numFrames;\n    float u = uOffset + (uv.x + 0.5) * (1. / numFrames);\n\n    outputTexcoord = vec2(u, uv.y + 0.5);\n    outputColorMult = colorMult;\n\n    vec3 basisX = viewInverse[0].xyz;\n    vec3 basisZ = viewInverse[1].xyz;\n    vec4 vertexWorld = modelMatrix * vec4(position, 1.0);\n\n    float size = mix(startSize, endSize, percentLife);\n    size = (percentLife < 0. || percentLife > 1.) ? 0. : size;\n    float s = sin(spinStart + spinSpeed * localTime);\n    float c = cos(spinStart + spinSpeed * localTime);\n\n    vec2 rotatedPoint = vec2(uv.x * c + uv.y * s, -uv.x * s + uv.y * c);\n    vec3 localPosition = vec3(basisX * rotatedPoint.x + basisZ * rotatedPoint.y) * size +\n                        velocity * localTime +\n                        acceleration * localTime * localTime +\n                        vertexWorld.xyz;\n\n    outputPercentLife = percentLife;\n    gl_Position = projectionMatrix * viewMatrix * vec4(localPosition, 1.);\n\n}"
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/shaders/particles-oriented-instanced_vs.glsl":
+/*!*************************************************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/shaders/particles-oriented-instanced_vs.glsl ***!
+  \*************************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = "// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js#L63\n\n// 3D (oriented) vertex shader\nuniform mat4 worldViewProjection;\nuniform mat4 world;\nuniform vec3 worldVelocity;\nuniform vec3 worldAcceleration;\nuniform float timeRange;\nuniform float time;\nuniform float timeOffset;\nuniform float frameDuration;\nuniform float numFrames;\n\n// Incoming vertex attributes\nattribute vec3 offset;\nattribute vec4 uvLifeTimeFrameStart; // uv, lifeTime, frameStart\nattribute float startTime;    // position.xyz, startTime\nattribute vec4 velocityStartSize;    // velocity.xyz, startSize\nattribute vec4 accelerationEndSize;  // acceleration.xyz, endSize\nattribute vec4 spinStartSpinSpeed;   // spinStart.x, spinSpeed.y\nattribute vec4 orientation;          // orientation quaternion\nattribute vec4 colorMult;            // multiplies color and ramp textures\n\n// Outgoing variables to fragment shader\nvarying vec2 outputTexcoord;\nvarying float outputPercentLife;\nvarying vec4 outputColorMult;\nvoid main() {\nfloat lifeTime = uvLifeTimeFrameStart.z;\nfloat frameStart = uvLifeTimeFrameStart.w;\nvec3 velocity = (world * vec4(velocityStartSize.xyz,\n                              0.)).xyz + worldVelocity;\nfloat startSize = velocityStartSize.w;\nvec3 acceleration = (world * vec4(accelerationEndSize.xyz,\n                                  0)).xyz + worldAcceleration;\nfloat endSize = accelerationEndSize.w;\nfloat spinStart = spinStartSpinSpeed.x;\nfloat spinSpeed = spinStartSpinSpeed.y;\n\nfloat localTime = mod((time - timeOffset - startTime), timeRange);\nfloat percentLife = localTime / lifeTime;\n\nfloat frame = mod(floor(localTime / frameDuration + frameStart),\n                  numFrames);\nfloat uOffset = frame / numFrames;\nfloat u = uOffset + (uv.x + 0.5) * (1. / numFrames);\n\noutputTexcoord = vec2(u, uv.y + 0.5);\noutputColorMult = colorMult;\n\nfloat size = mix(startSize, endSize, percentLife);\nsize = (percentLife < 0. || percentLife > 1.) ? 0. : size;\nfloat s = sin(spinStart + spinSpeed * localTime);\nfloat c = cos(spinStart + spinSpeed * localTime);\n\nvec4 rotatedPoint = vec4((uv.x * c + uv.y * s) * size, 0.,\n                         (uv.x * s - uv.y * c) * size, 1.);\nvec3 center = velocity * localTime +\n              acceleration * localTime * localTime +\n              position +offset;\n\nvec4 q2 = orientation + orientation;\nvec4 qx = orientation.xxxw * q2.xyzx;\nvec4 qy = orientation.xyyw * q2.xyzy;\nvec4 qz = orientation.xxzw * q2.xxzz;\n\nmat4 localMatrix = mat4(\n    (1.0 - qy.y) - qz.z,\n    qx.y + qz.w,\n    qx.z - qy.w,\n    0,\n\n    qx.y - qz.w,\n    (1.0 - qx.x) - qz.z,\n    qy.z + qx.w,\n    0,\n\n    qx.z + qy.w,\n    qy.z - qx.w,\n    (1.0 - qx.x) - qy.y,\n    0,\n\n    center.x, center.y, center.z, 1);\nrotatedPoint = localMatrix * rotatedPoint;\noutputPercentLife = percentLife;\ngl_Position = projectionMatrix * modelViewMatrix * rotatedPoint;\n}"
+
+/***/ }),
+
+/***/ "./node_modules/three-gpu-particle-system/src/shaders/particles_fs.glsl":
+/*!******************************************************************************!*\
+  !*** ./node_modules/three-gpu-particle-system/src/shaders/particles_fs.glsl ***!
+  \******************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = "// source: https://github.com/greggman/tdl/blob/master/tdl/particles.js#L225\n\n#ifdef GL_ES\nprecision mediump float;\n#endif\nuniform sampler2D rampSampler;\nuniform sampler2D colorSampler;\n\n// Incoming variables from vertex shader\nvarying vec2 outputTexcoord;\nvarying float outputPercentLife;\nvarying vec4 outputColorMult;\n\nvoid main() {\n    vec4 colorMult = texture2D(rampSampler, vec2(outputPercentLife, 0.5)) * outputColorMult;\n    gl_FragColor = texture2D(colorSampler, outputTexcoord) * colorMult;\n    // For debugging: requires setup of some uniforms and vertex\n    // attributes to be commented out to avoid GL errors\n    //gl_FragColor = vec4(1., 0., 0., 1.);\n}"
+
+/***/ }),
+
 /***/ "./node_modules/three/build/three.module.js":
 /*!**************************************************!*\
   !*** ./node_modules/three/build/three.module.js ***!
@@ -3740,7 +4610,7 @@ exports.default = OpenSimplexNoise;
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "WebGLRenderTargetCube", function() { return WebGLRenderTargetCube; });
+/* WEBPACK VAR INJECTION */(function(THREE) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "WebGLRenderTargetCube", function() { return WebGLRenderTargetCube; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "WebGLRenderTarget", function() { return WebGLRenderTarget; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "WebGLRenderer", function() { return WebGLRenderer; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ShaderLib", function() { return ShaderLib; });
@@ -51986,6 +52856,7 @@ function LensFlare() {
 
 
 
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js")))
 
 /***/ }),
 
@@ -52045,12 +52916,10 @@ class Controls {
         switch (event.button) {
             case 0:
                 this.fire = true;
-                ;
-                ;
+                break;
             case 2:
                 this.boost = true;
-                ;
-                ;
+                break;
         }
     }
     ;
@@ -52058,12 +52927,10 @@ class Controls {
         switch (event.button) {
             case 0:
                 this.fire = false;
-                ;
-                ;
+                break;
             case 2:
                 this.boost = false;
-                ;
-                ;
+                break;
         }
     }
     ;
@@ -52122,44 +52989,66 @@ const player_1 = __webpack_require__(/*! ./player/player */ "./src/player/player
 const lock_pointer_1 = __webpack_require__(/*! ./lock_pointer */ "./src/lock_pointer.ts");
 const terrain_1 = __webpack_require__(/*! ./terrain/terrain */ "./src/terrain/terrain.ts");
 const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
+const hud_1 = __webpack_require__(/*! ./hud */ "./src/hud.ts");
+const vectorDown = new three_1.Vector3(0, -1, 0);
 class Game {
     constructor(window, document, debug) {
         this.window = window;
         this.debug = debug;
         this.scene = new three_1.Scene();
         this.camera = new three_1.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
-        this.renderer = new three_1.WebGLRenderer();
-        this.player = new player_1.default(document, this.scene, this.camera);
-        this.scene.add(this.player.object);
-        this.player.addEventListeners();
-        this.addEventListeners();
-        lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player);
+        let renderer = new three_1.WebGLRenderer();
+        renderer.autoClear = false;
+        renderer.setClearColor(0xBDFFFD);
+        this.renderer = renderer;
         this.controls = new controls_1.default(document, document.getElementById('blocker'), document.getElementById('instructions'));
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
-        let axis = new three_1.AxesHelper(10);
-        this.camera.add(axis);
         let light = new three_1.DirectionalLight(0xffffff, 1.0);
         light.position.set(100, 100, 100);
         this.scene.add(light);
         let light2 = new three_1.DirectionalLight(0xffffff, 1.0);
         light2.position.set(-100, 100, -100);
         this.scene.add(light2);
+        this.hud = new hud_1.default(window, document);
         this.raycaster = new three_1.Raycaster(); // new Vector3(), new Vector3( 0, -1, 0 ), 0, 10 );
         const size = 1000;
         this.terrain = new terrain_1.default(size, size, size / 5, size / 5);
         this.terrain.mesh.rotation.x = -Math.PI / 2; // FIXME: Generate geometry in correct orientation right away..
         this.scene.add(this.terrain.mesh);
         this.render();
+        this.player = new player_1.default(document, this);
+        this.scene.add(this.player.object);
+        this.player.addEventListeners();
+        this.addEventListeners();
+        lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player);
         this.player.object.position.y = this.findGround(this.player.object.position);
         this.velocity = new three_1.Vector3();
         this.prevTime = performance.now();
+    }
+    // returns true if hit is registered.
+    registerHit(object) {
+        let position = object.getWorldPosition(new three_1.Vector3());
+        let direction = object.getWorldDirection(new three_1.Vector3()).negate();
+        // console.log("projectile world pos", position);
+        //let far = this.raycaster.far;
+        //this.raycaster.far = 1;
+        this.raycaster.set(position, direction);
+        if (this.debug) {
+            this.scene.add(new three_1.ArrowHelper(direction, position, 10, 0x00ffff));
+        }
+        let intersections = this.raycaster.intersectObjects([this.terrain.mesh]);
+        // this.raycaster.far = far;
+        if (intersections.length == 0) {
+            return false;
+        }
+        return intersections[0].distance < 5;
     }
     findGround(position) {
         var rayOffset = 100;
         var rayOrigin = new three_1.Vector3().copy(position);
         rayOrigin.y += rayOffset;
-        this.raycaster.set(rayOrigin, new three_1.Vector3(0, -1, 0));
+        this.raycaster.set(rayOrigin, vectorDown);
         var intersections = this.raycaster.intersectObject(this.terrain.mesh);
         if (intersections.length == 0) {
             console.log("Couldn't find ground, spawning at default level");
@@ -52237,7 +53126,9 @@ class Game {
         this.render();
     }
     render() {
+        this.renderer.clear(true, true, true);
         this.renderer.render(this.scene, this.camera);
+        this.renderer.render(this.hud.scene, this.hud.camera);
     }
     addEventListeners() {
         this.window.addEventListener('resize', () => this.onWindowResize(), false);
@@ -52249,6 +53140,44 @@ class Game {
     }
 }
 exports.default = Game;
+
+
+/***/ }),
+
+/***/ "./src/hud.ts":
+/*!********************!*\
+  !*** ./src/hud.ts ***!
+  \********************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+class HUD {
+    constructor(window, document) {
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        let bitmap = canvas.getContext('2d');
+        bitmap.font = 'Normal 40px Sans-Serif';
+        bitmap.textAlign = 'center';
+        bitmap.fillText("+", width / 2, height / 2);
+        this.camera = new three_1.OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 0, 30);
+        this.scene = new three_1.Scene();
+        var texture = new three_1.Texture(canvas);
+        texture.needsUpdate = true;
+        let material = new three_1.MeshBasicMaterial({ map: texture });
+        material.transparent = true;
+        var geometry = new three_1.PlaneGeometry(width, height);
+        var plane = new three_1.Mesh(geometry, material);
+        this.scene.add(plane);
+    }
+}
+exports.default = HUD;
 
 
 /***/ }),
@@ -52337,15 +53266,16 @@ const vector3Zero = new three_1.Vector3();
 const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
 const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
 class Player {
-    constructor(document, scene, camera) {
+    constructor(document, game) {
         this.document = document;
-        this.scene = scene;
-        this.camera = camera;
+        this.game = game;
+        this.cooldown = 1000;
+        this.lastFired = performance.now();
         this.plElement = document.body;
         this.isLocked = false;
-        this.camera.rotation.set(0, 0, 0);
+        game.camera.rotation.set(0, 0, 0);
         this.pitchObject = new three_1.Object3D();
-        this.pitchObject.add(camera);
+        this.pitchObject.add(game.camera);
         this.object = new three_1.Object3D();
         this.object.add(this.pitchObject);
         this.projectiles = [];
@@ -52385,14 +53315,25 @@ class Player {
     }
     ;
     fire() {
-        var projectile = new projectile_1.default(this.object.position, this.camera.getWorldQuaternion(new three_1.Quaternion()));
-        this.scene.add(projectile.object);
+        let now = performance.now();
+        if (now - this.lastFired < this.cooldown) {
+            // console.log("Weapon cooldown", this.lastFired - now)
+            return;
+        }
+        this.lastFired = now;
+        var projectile = new projectile_1.default(this.game, this.object.position, this.game.camera.getWorldQuaternion(new three_1.Quaternion()));
+        this.game.scene.add(projectile.object);
         this.projectiles.push(projectile);
     }
     update(delta) {
+        let projectiles = [];
         for (let projectile of this.projectiles) {
-            projectile.update(delta);
+            if (!projectile.update(delta)) {
+                projectiles.push(projectile);
+            }
         }
+        // console.log("Number of active projectiles: ", projectiles.length)
+        this.projectiles = projectiles;
     }
 }
 exports.default = Player;
@@ -52412,8 +53353,11 @@ exports.default = Player;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const THREE = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const three_gpu_particle_system_1 = __webpack_require__(/*! three-gpu-particle-system */ "./node_modules/three-gpu-particle-system/src/main.js");
 class Projectile {
-    constructor(position, rotation) {
+    constructor(game, position, rotation) {
+        this.game = game;
         this.speed = 80;
         var geometry = new three_1.SphereGeometry(0.3, 32, 32);
         geometry.applyMatrix(new three_1.Matrix4().makeScale(1, 0.1, 1));
@@ -52421,11 +53365,90 @@ class Projectile {
         this.object = new three_1.Mesh(geometry, material);
         this.object.position.copy(position);
         this.object.quaternion.copy(rotation);
-        this.raycaster = new three_1.Raycaster();
+        this.particleSystem = new three_gpu_particle_system_1.ParticleSystem(game.scene, game.camera);
+    }
+    finish() {
+        this.game.scene.remove(this.particleSystem);
     }
     // move projectile in rotation direction
     update(delta) {
+        if (this.exploded != null) {
+            if (performance.now() - this.exploded > 4000) {
+                this.finish();
+                return true;
+            }
+            this.particleSystem.draw();
+            return false;
+        }
+        if (this.object.position.length() > 1000) {
+            console.log("projectile expired");
+            this.finish();
+            return true;
+        }
         this.object.translateZ(-this.speed * delta);
+        if (this.game.registerHit(this.object)) {
+            this.explode();
+        }
+        return false;
+    }
+    explode() {
+        this.exploded = performance.now();
+        this.game.scene.remove(this.object);
+        this.game.scene.add(this.smokeEmitter(this.object.position, this.object.quaternion));
+        this.game.scene.add(this.blastEmitter(this.object.position, this.object.quaternion));
+    }
+    smokeEmitter(position, rotation) {
+        var emitter = this.particleSystem.createParticleEmitter();
+        emitter.setColorRamp([
+            1, 1, 1, 0.3,
+            1, 1, 1, 0
+        ]);
+        emitter.setParameters({
+            numParticles: 30,
+            lifeTime: 3,
+            startTime: 0,
+            startSize: 0.50,
+            endSize: 10,
+            spinSpeedRange: 10,
+            billboard: true
+        }, function (index, parameters) {
+            let matrix = new three_1.Matrix4();
+            let angle = Math.random() * 2 * Math.PI;
+            matrix.makeRotationY(angle);
+            let position = new three_1.Vector3(3, 0, 0);
+            var len = position.length();
+            position.transformDirection(matrix);
+            parameters.velocity = [position.x * len, position.y * len, position.z * len];
+            var acc = new three_1.Vector3(-0.3, 0, -0.3).multiply(position);
+            parameters.acceleration = [acc.x, acc.y, acc.z];
+        });
+        emitter.setTranslation(this.object.position.x, this.object.position.y, this.object.position.z);
+        return emitter;
+    }
+    blastEmitter(position, rotation) {
+        var emitter = this.particleSystem.createParticleEmitter();
+        emitter.setState(THREE.AdditiveBlending);
+        /*emitter.setColorRamp(
+            [
+                1, 1, 1, 1,
+                1, 1, 1, 0
+            ]
+        );*/
+        emitter.setParameters({
+            numParticles: 80,
+            lifeTime: 3,
+            startTime: 0,
+            startSize: 0,
+            endSize: 1,
+            spinSpeedRange: 10,
+            positionRange: [1, 0, 1],
+            velocityRange: [10, 10, 10],
+            accelerationRange: [10, 10, 10],
+            acceleration: [0, 10, 0],
+            colorMult: [0, 1, 1, 1],
+        });
+        emitter.setTranslation(this.object.position.x, this.object.position.y, this.object.position.z);
+        return emitter;
     }
 }
 exports.default = Projectile;
@@ -52459,8 +53482,8 @@ class Terrain {
     }
     newMaterial() {
         return new three_1.MeshLambertMaterial({
-            color: 0x00ff00,
-            wireframe: true,
+            color: 0x16C172,
+            wireframe: false,
         });
     }
     newGeometry(width, height, widthSegments, heightSegments) {
