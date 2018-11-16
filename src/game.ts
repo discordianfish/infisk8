@@ -23,6 +23,7 @@ import Player from './player/player';
 import {lockPointer} from './lock_pointer';
 import Terrain from './terrain/terrain';
 import Controls from './controls';
+import HUD from './hud';
 
 const vectorDown = new Vector3(0, -1, 0);
 
@@ -32,8 +33,9 @@ export default class Game {
   controls: Controls
   terrain: Terrain
   scene: Scene
-  renderer: Renderer
+  renderer: WebGLRenderer
   camera: PerspectiveCamera
+  hud: HUD
 
   raycaster: Raycaster
   velocity: Vector3 // player velocity
@@ -46,16 +48,14 @@ export default class Game {
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
     let renderer = new WebGLRenderer()
-    renderer.setClearColor(0x0000ff);
+    renderer.autoClear = false;
+    renderer.setClearColor(0xBDFFFD);
     this.renderer = renderer;
 
     this.controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
 
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     document.body.appendChild(this.renderer.domElement)
-
-    let axis = new AxesHelper(10)
-    this.camera.add(axis)
 
     let light = new DirectionalLight(0xffffff, 1.0)
     light.position.set(100, 100, 100)
@@ -64,6 +64,8 @@ export default class Game {
     let light2 = new DirectionalLight(0xffffff, 1.0)
     light2.position.set(-100, 100, -100)
     this.scene.add(light2)
+
+    this.hud = new HUD(window, document);
 
     this.raycaster = new Raycaster(); // new Vector3(), new Vector3( 0, -1, 0 ), 0, 10 );
 
@@ -206,7 +208,9 @@ export default class Game {
   }
 
   render(): void {
+    this.renderer.clear(true, true, true);
     this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.hud.scene, this.hud.camera);
   }
 
   addEventListeners() {

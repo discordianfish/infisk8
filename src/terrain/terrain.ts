@@ -31,7 +31,7 @@ export default class Terrain {
 
   newMaterial(): Material {
     return new MeshLambertMaterial({
-      color: 0x00ff00,
+      color: 0x16C172,
       wireframe: false,
     })
   }
