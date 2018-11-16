@@ -1,8 +1,18 @@
-import {Vector3, SphereGeometry, MeshBasicMaterial, Mesh, Object3D, Matrix4, Quaternion} from 'three';
+import {
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+  Quaternion,
+  Raycaster,
+  SphereGeometry,
+  Vector3,
+} from 'three';
 
 export default class Projectile {
   object: Object3D
   speed: number
+  raycaster: Raycaster
   constructor(position: Vector3, rotation: Quaternion) {
     this.speed = 80;
 
@@ -12,6 +22,8 @@ export default class Projectile {
     this.object = new Mesh( geometry, material );
     this.object.position.copy(position);
     this.object.quaternion.copy(rotation);
+
+    this.raycaster = new Raycaster();
   }
 
   // move projectile in rotation direction

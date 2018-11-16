@@ -10,7 +10,7 @@ export default class Controls {
   jump: boolean
   fire: boolean
 
-  constructor(blocker: HTMLElement, instructions: HTMLElement) {
+  constructor(document: Document, blocker: HTMLElement, instructions: HTMLElement) {
     this.moveForward = false;
     this.moveLeft = false;
     this.moveRight = false;
@@ -51,7 +51,7 @@ export default class Controls {
         if (this.canJump === true) this.jump = true;
         this.canJump = false;
 				break;
-		}
+    }
   };
 
   onMouseDown(event) {
