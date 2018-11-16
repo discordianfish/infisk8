@@ -58,10 +58,10 @@ export default class Controls {
     switch(event.button) {
       case 0:
         this.fire = true;
-        ;;
+        break;
       case 2:
         this.boost = true;
-        ;;
+        break;
     }
   };
 
@@ -69,10 +69,10 @@ export default class Controls {
     switch(event.button) {
       case 0:
         this.fire = false;
-        ;;
+        break;
       case 2:
         this.boost = false;
-        ;;
+        break;
     }
   };
 
