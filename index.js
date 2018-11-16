@@ -51989,147 +51989,6 @@ function LensFlare() {
 
 /***/ }),
 
-/***/ "./node_modules/three/examples/js/controls/PointerLockControls.js":
-/*!************************************************************************!*\
-  !*** ./node_modules/three/examples/js/controls/PointerLockControls.js ***!
-  \************************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-var THREE = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
-/**
- * @author mrdoob / http://mrdoob.com/
- * @author Mugen87 / https://github.com/Mugen87
- */
-
-THREE.PointerLockControls = function ( camera, domElement ) {
-
-	var scope = this;
-
-	this.domElement = domElement || document.body;
-	this.isLocked = false;
-
-	camera.rotation.set( 0, 0, 0 );
-
-	var pitchObject = new THREE.Object3D();
-	pitchObject.add( camera );
-
-	var yawObject = new THREE.Object3D();
-	yawObject.position.y = 10;
-	yawObject.add( pitchObject );
-
-	var PI_2 = Math.PI / 2;
-
-	function onMouseMove( event ) {
-
-		if ( scope.isLocked === false ) return;
-
-		var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-		var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-
-		yawObject.rotation.y -= movementX * 0.002;
-		pitchObject.rotation.x -= movementY * 0.002;
-
-		pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
-
-	}
-
-	function onPointerlockChange() {
-
-		if ( document.pointerLockElement === scope.domElement ) {
-
-			scope.dispatchEvent( { type: 'lock' } );
-
-			scope.isLocked = true;
-
-		} else {
-
-			scope.dispatchEvent( { type: 'unlock' } );
-
-			scope.isLocked = false;
-
-		}
-
-	}
-
-	function onPointerlockError() {
-
-		console.error( 'THREE.PointerLockControls: Unable to use Pointer Lock API' );
-
-	}
-
-	this.connect = function () {
-
-		document.addEventListener( 'mousemove', onMouseMove, false );
-		document.addEventListener( 'pointerlockchange', onPointerlockChange, false );
-		document.addEventListener( 'pointerlockerror', onPointerlockError, false );
-
-	};
-
-	this.disconnect = function () {
-
-		document.removeEventListener( 'mousemove', onMouseMove, false );
-		document.removeEventListener( 'pointerlockchange', onPointerlockChange, false );
-		document.removeEventListener( 'pointerlockerror', onPointerlockError, false );
-
-	};
-
-	this.dispose = function () {
-
-		this.disconnect();
-
-	};
-
-	this.getObject = function () {
-
-		return yawObject;
-
-	};
-
-	this.getDirection = function () {
-
-		// assumes the camera itself is not rotated
-
-		var direction = new THREE.Vector3( 0, 0, - 1 );
-		var rotation = new THREE.Euler( 0, 0, 0, 'YXZ' );
-
-		return function ( v ) {
-
-			rotation.set( pitchObject.rotation.x, yawObject.rotation.y, 0 );
-
-			v.copy( direction ).applyEuler( rotation );
-
-			return v;
-
-		};
-
-	}();
-
-	this.lock = function () {
-
-		this.domElement.requestPointerLock();
-
-	};
-
-	this.unlock = function () {
-
-		document.exitPointerLock();
-
-	};
-
-	this.connect();
-
-};
-
-THREE.PointerLockControls.prototype = Object.create( THREE.EventDispatcher.prototype );
-THREE.PointerLockControls.prototype.constructor = THREE.PointerLockControls;
-
-module.exports = {"PointerLockControls": THREE.PointerLockControls}
-
-/***/ }),
-
 /***/ "./src/controls.ts":
 /*!*************************!*\
   !*** ./src/controls.ts ***!
@@ -52142,13 +52001,14 @@ module.exports = {"PointerLockControls": THREE.PointerLockControls}
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
 class Controls {
-    constructor(blocker, instructions, controls) {
+    constructor(document, blocker, instructions) {
         this.moveForward = false;
         this.moveLeft = false;
         this.moveRight = false;
         this.moveBackward = false;
         this.boost = false;
         this.jump = false;
+        this.fire = false;
         this.canJump = false;
         document.addEventListener('keydown', (event) => { this.onKeyDown(event); }, false);
         document.addEventListener('keyup', (event) => { this.onKeyUp(event); }, false);
@@ -52156,7 +52016,6 @@ class Controls {
         document.addEventListener('mouseup', (event) => { this.onMouseUp(event); }, false);
     }
     onKeyDown(event) {
-        // console.log("key event", event, " controls:", this);
         switch (event.keyCode) {
             case 38: // up
             case 87: // w
@@ -52183,13 +52042,29 @@ class Controls {
     }
     ;
     onMouseDown(event) {
-        console.log("mouseDown");
-        this.boost = true;
+        switch (event.button) {
+            case 0:
+                this.fire = true;
+                ;
+                ;
+            case 2:
+                this.boost = true;
+                ;
+                ;
+        }
     }
     ;
     onMouseUp(event) {
-        console.log("mouseUp");
-        this.boost = false;
+        switch (event.button) {
+            case 0:
+                this.fire = false;
+                ;
+                ;
+            case 2:
+                this.boost = false;
+                ;
+                ;
+        }
     }
     ;
     onKeyUp(event) {
@@ -52232,6 +52107,152 @@ exports.default = Controls;
 
 /***/ }),
 
+/***/ "./src/game.ts":
+/*!*********************!*\
+  !*** ./src/game.ts ***!
+  \*********************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const player_1 = __webpack_require__(/*! ./player/player */ "./src/player/player.ts");
+const lock_pointer_1 = __webpack_require__(/*! ./lock_pointer */ "./src/lock_pointer.ts");
+const terrain_1 = __webpack_require__(/*! ./terrain/terrain */ "./src/terrain/terrain.ts");
+const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
+class Game {
+    constructor(window, document, debug) {
+        this.window = window;
+        this.debug = debug;
+        this.scene = new three_1.Scene();
+        this.camera = new three_1.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+        this.renderer = new three_1.WebGLRenderer();
+        this.player = new player_1.default(document, this.scene, this.camera);
+        this.scene.add(this.player.object);
+        this.player.addEventListeners();
+        this.addEventListeners();
+        lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player);
+        this.controls = new controls_1.default(document, document.getElementById('blocker'), document.getElementById('instructions'));
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(this.renderer.domElement);
+        let axis = new three_1.AxesHelper(10);
+        this.camera.add(axis);
+        let light = new three_1.DirectionalLight(0xffffff, 1.0);
+        light.position.set(100, 100, 100);
+        this.scene.add(light);
+        let light2 = new three_1.DirectionalLight(0xffffff, 1.0);
+        light2.position.set(-100, 100, -100);
+        this.scene.add(light2);
+        this.raycaster = new three_1.Raycaster(); // new Vector3(), new Vector3( 0, -1, 0 ), 0, 10 );
+        const size = 1000;
+        this.terrain = new terrain_1.default(size, size, size / 5, size / 5);
+        this.terrain.mesh.rotation.x = -Math.PI / 2; // FIXME: Generate geometry in correct orientation right away..
+        this.scene.add(this.terrain.mesh);
+        this.render();
+        this.player.object.position.y = this.findGround(this.player.object.position);
+        this.velocity = new three_1.Vector3();
+        this.prevTime = performance.now();
+    }
+    findGround(position) {
+        var rayOffset = 100;
+        var rayOrigin = new three_1.Vector3().copy(position);
+        rayOrigin.y += rayOffset;
+        this.raycaster.set(rayOrigin, new three_1.Vector3(0, -1, 0));
+        var intersections = this.raycaster.intersectObject(this.terrain.mesh);
+        if (intersections.length == 0) {
+            console.log("Couldn't find ground, spawning at default level");
+            return 100;
+        }
+        else {
+            return intersections[0].point.y + 10;
+        }
+    }
+    groundCheck() {
+        var rayOffset = 100;
+        var rayOrigin = new three_1.Vector3().copy(this.player.object.position);
+        rayOrigin.y += rayOffset;
+        this.raycaster.set(rayOrigin, new three_1.Vector3(0, -1, 0));
+        var groundLevel;
+        var intersections = this.raycaster.intersectObject(this.terrain.mesh);
+        if (intersections.length > 0) {
+            groundLevel = intersections[0].point.y;
+            var groundDistance = intersections[0].distance - rayOffset;
+            if (groundDistance < 1) {
+                var n = intersections[0].face.normal;
+                // convert local normal to world position.. I think..?
+                var normalMatrix = new three_1.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
+                var normal = n.clone().applyMatrix3(normalMatrix).normalize();
+                var reflection = new three_1.Vector3().copy(this.velocity); // this.player.object.position);
+                // reflection.reflect(normal);
+                reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+                if (this.debug) {
+                    this.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
+                    this.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
+                }
+                this.velocity = reflection;
+            }
+        }
+        return groundLevel;
+    }
+    update() {
+        requestAnimationFrame(() => this.update());
+        if (!this.player.isLocked) {
+            return;
+        }
+        var time = performance.now();
+        var delta = (time - this.prevTime) / 1000;
+        this.prevTime = time;
+        this.player.update(delta);
+        var groundLevel = this.groundCheck();
+        var groundDistance = this.player.object.position.y - groundLevel;
+        var onGround = groundDistance < 1;
+        var direction = this.controls.input();
+        var speed = 20;
+        var controlVelocity = new three_1.Vector3();
+        if (onGround || this.controls.boost) {
+            controlVelocity.z -= direction.z * speed * delta;
+            controlVelocity.x -= direction.x * speed * delta;
+            controlVelocity.y += (direction.y * speed); // * delta;
+        }
+        controlVelocity.y += Number(this.controls.boost) * speed * delta;
+        controlVelocity.z -= Number(this.controls.boost) * speed * delta;
+        // We don't translate this.player.object directly so we have one motion vector and
+        // we can include the momentum in the reflection on terrain collision.
+        controlVelocity.applyQuaternion(this.player.object.quaternion);
+        this.velocity.add(controlVelocity);
+        if (this.player.object.position.y < groundLevel) {
+            this.player.object.position.y = groundLevel;
+            this.velocity.z += this.velocity.y;
+            this.velocity.y = 0;
+        }
+        // velocity.x -= velocity.x * 1.0 * delta;
+        // velocity.z -= velocity.z * 1.0 * delta;
+        this.velocity.y -= 9.8 * delta;
+        this.player.object.position.add(this.velocity.clone().multiplyScalar(delta));
+        if (this.controls.fire) {
+            this.player.fire();
+        }
+        this.render();
+    }
+    render() {
+        this.renderer.render(this.scene, this.camera);
+    }
+    addEventListeners() {
+        this.window.addEventListener('resize', () => this.onWindowResize(), false);
+    }
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+}
+exports.default = Game;
+
+
+/***/ }),
+
 /***/ "./src/index.ts":
 /*!**********************!*\
   !*** ./src/index.ts ***!
@@ -52242,130 +52263,10 @@ exports.default = Controls;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const THREE = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
-const PointerLockControls_1 = __webpack_require__(/*! three/examples/js/controls/PointerLockControls */ "./node_modules/three/examples/js/controls/PointerLockControls.js");
-const lock_pointer_1 = __webpack_require__(/*! ./lock_pointer */ "./src/lock_pointer.ts");
-const terrain_1 = __webpack_require__(/*! ./terrain */ "./src/terrain.ts");
-const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
-const DEBUG = new URL(window.location.href).searchParams.get('debug') == '1';
-let scene = new THREE.Scene();
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
-let renderer = new THREE.WebGLRenderer();
-window.addEventListener('resize', onWindowResize, false);
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
-// const controls = new OrbitControls(camera, renderer.domElement);
-const plc = new PointerLockControls_1.PointerLockControls(camera);
-const yawObject = plc.getObject();
-scene.add(yawObject);
-lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), plc);
-const controls = new controls_1.default(document.getElementById('blocker'), document.getElementById('instructions'), plc);
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-let axis = new THREE.AxesHelper(10);
-camera.add(axis);
-let light = new THREE.DirectionalLight(0xffffff, 1.0);
-light.position.set(100, 100, 100);
-scene.add(light);
-let light2 = new THREE.DirectionalLight(0xffffff, 1.0);
-light2.position.set(-100, 100, -100);
-scene.add(light2);
-let material = new THREE.MeshBasicMaterial({
-    color: 0xaaaaaa,
-    wireframe: true
-});
-let raycaster = new THREE.Raycaster(); // new THREE.Vector3(), new THREE.Vector3( 0, -1, 0 ), 0, 10 );
-const size = 1000;
-let terrain = new THREE.Mesh(terrain_1.newTerrain(size, size, size / 5, size / 5), material);
-terrain.rotation.x = -Math.PI / 2;
-scene.add(terrain);
-var rayOffset = 100;
-var rayOrigin = new THREE.Vector3().copy(yawObject.position);
-rayOrigin.y += rayOffset;
-raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
-var intersections = raycaster.intersectObject(terrain);
-if (intersections.length == 0) {
-    console.log("Couldn't find ground, spawning at default level");
-    yawObject.position.y = 100;
-}
-else {
-    yawObject.position.y = intersections[0].point.y + 10;
-}
-var velocity = new THREE.Vector3();
-function groundCheck(delta) {
-    // raycaster.ray.origin.copy(yawObject.position);
-    // raycaster.ray.origin.y += 100;
-    var rayOffset = 100;
-    var rayOrigin = new THREE.Vector3().copy(yawObject.position);
-    rayOrigin.y += rayOffset;
-    raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
-    var groundLevel;
-    var intersections = raycaster.intersectObject(terrain);
-    if (intersections.length > 0) {
-        groundLevel = intersections[0].point.y;
-        var groundDistance = intersections[0].distance - rayOffset;
-        if (groundDistance < 1) {
-            var n = intersections[0].face.normal;
-            // convert local normal to world position.. I think..?
-            var normalMatrix = new THREE.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
-            var normal = n.clone().applyMatrix3(normalMatrix).normalize();
-            var reflection = new THREE.Vector3().copy(velocity); // yawObject.position);
-            // reflection.reflect(normal);
-            reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
-            if (DEBUG) {
-                scene.add(new THREE.ArrowHelper(velocity, intersections[0].point, velocity.length() * 10, 0x0000ff));
-                scene.add(new THREE.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
-            }
-            velocity = reflection;
-        }
-    }
-    return groundLevel;
-}
-var prevTime = performance.now();
-function animate() {
-    requestAnimationFrame(animate);
-    if (!plc.enabled) {
-        return;
-    }
-    var time = performance.now();
-    var delta = (time - prevTime) / 1000;
-    prevTime = time;
-    var groundLevel = groundCheck(delta);
-    var groundDistance = yawObject.position.y - groundLevel;
-    var onGround = groundDistance < 1;
-    var direction = controls.input();
-    var speed = 20;
-    var controlVelocity = new THREE.Vector3();
-    if (onGround || controls.boost) {
-        controlVelocity.z -= direction.z * speed * delta;
-        controlVelocity.x -= direction.x * speed * delta;
-        controlVelocity.y += (direction.y * speed); // * delta;
-    }
-    controlVelocity.y += Number(controls.boost) * speed * delta;
-    controlVelocity.z -= Number(controls.boost) * speed * delta;
-    // We don't translate yawObject directly so we have one motion vector and
-    // we can include the momentum in the reflection on terrain collision.
-    controlVelocity.applyQuaternion(yawObject.quaternion);
-    velocity.add(controlVelocity);
-    if (yawObject.position.y < groundLevel) {
-        yawObject.position.y = groundLevel;
-        velocity.z += velocity.y;
-        velocity.y = 0;
-    }
-    // velocity.x -= velocity.x * 1.0 * delta;
-    // velocity.z -= velocity.z * 1.0 * delta;
-    velocity.y -= 9.8 * delta;
-    console.log(velocity);
-    yawObject.position.add(velocity.clone().multiplyScalar(delta));
-    render();
-}
-function render() {
-    renderer.render(scene, camera);
-}
-animate();
+const game_1 = __webpack_require__(/*! ./game */ "./src/game.ts");
+const debug = new URL(window.location.href).searchParams.get('debug') == '1';
+let game = new game_1.default(window, document, debug);
+game.update();
 
 
 /***/ }),
@@ -52419,70 +52320,200 @@ exports.lockPointer = lockPointer;
 
 /***/ }),
 
-/***/ "./src/terrain.ts":
-/*!************************!*\
-  !*** ./src/terrain.ts ***!
-  \************************/
+/***/ "./src/player/player.ts":
+/*!******************************!*\
+  !*** ./src/player/player.ts ***!
+  \******************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const THREE = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
-const open_simplex_noise_1 = __webpack_require__(/*! open-simplex-noise */ "./node_modules/open-simplex-noise/lib/index.js");
-const noiseGen = new open_simplex_noise_1.default(Date.now());
-function newTerrain(width, height, widthSegments, heightSegments) {
-    var width_half = width / 2;
-    var height_half = height / 2;
-    var gridX = Math.floor(widthSegments) || 1;
-    var gridY = Math.floor(heightSegments) || 1;
-    var gridX1 = gridX + 1;
-    var gridY1 = gridY + 1;
-    var segment_width = width / gridX;
-    var segment_height = height / gridY;
-    var ix, iy;
-    // buffers
-    var indices = [];
-    var vertices = [];
-    var normals = [];
-    var uvs = [];
-    // generate vertices, normals and uvs
-    for (iy = 0; iy < gridY1; iy++) {
-        var y = iy * segment_height - height_half;
-        for (ix = 0; ix < gridX1; ix++) {
-            var x = ix * segment_width - width_half;
-            const detailFactor = 0.02;
-            const z = (noiseGen.noise2D(x * detailFactor, y * detailFactor) + 1) * 50;
-            vertices.push(x, -y, z);
-            normals.push(0, -1, 0);
-            uvs.push(ix / gridX);
-            uvs.push(1 - (iy / gridY));
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const projectile_1 = __webpack_require__(/*! ../projectile/projectile */ "./src/projectile/projectile.ts");
+var PI_2 = Math.PI / 2;
+const vector3Zero = new three_1.Vector3();
+const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
+const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
+class Player {
+    constructor(document, scene, camera) {
+        this.document = document;
+        this.scene = scene;
+        this.camera = camera;
+        this.plElement = document.body;
+        this.isLocked = false;
+        this.camera.rotation.set(0, 0, 0);
+        this.pitchObject = new three_1.Object3D();
+        this.pitchObject.add(camera);
+        this.object = new three_1.Object3D();
+        this.object.add(this.pitchObject);
+        this.projectiles = [];
+    }
+    onMouseMove(event) {
+        if (!this.isLocked)
+            return;
+        var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+        var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+        this.object.rotation.y -= movementX * 0.002;
+        this.pitchObject.rotation.x -= movementY * 0.002;
+        this.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, this.pitchObject.rotation.x));
+    }
+    onPointerlockChange() {
+        if (this.document.pointerLockElement === this.plElement) {
+            this.document.dispatchEvent(eventLock);
+            this.isLocked = true;
+        }
+        else {
+            this.document.dispatchEvent(eventUnlock);
+            this.isLocked = false;
         }
     }
-    // indices
-    for (iy = 0; iy < gridY; iy++) {
-        for (ix = 0; ix < gridX; ix++) {
-            var a = ix + gridX1 * iy;
-            var b = ix + gridX1 * (iy + 1);
-            var c = (ix + 1) + gridX1 * (iy + 1);
-            var d = (ix + 1) + gridX1 * iy;
-            // faces
-            indices.push(a, b, d);
-            indices.push(b, c, d);
+    onPointerlockError() {
+        console.error('THREE.PointerLockControls: Unable to use Pointer Lock API');
+    }
+    addEventListeners() {
+        this.document.addEventListener('mousemove', e => this.onMouseMove(e), false);
+        this.document.addEventListener('pointerlockchange', e => this.onPointerlockChange(), false);
+        this.document.addEventListener('pointerlockerror', e => this.onPointerlockError(), false);
+    }
+    ;
+    removeEventListener() {
+        this.document.removeEventListener('mousemove', e => this.onMouseMove(e), false);
+        this.document.removeEventListener('pointerlockchange', e => this.onPointerlockChange(), false);
+        this.document.removeEventListener('pointerlockerror', e => this.onPointerlockError(), false);
+    }
+    ;
+    fire() {
+        var projectile = new projectile_1.default(this.object.position, this.camera.getWorldQuaternion(new three_1.Quaternion()));
+        this.scene.add(projectile.object);
+        this.projectiles.push(projectile);
+    }
+    update(delta) {
+        for (let projectile of this.projectiles) {
+            projectile.update(delta);
         }
     }
-    // build geometry
-    let geo = new THREE.BufferGeometry();
-    geo.setIndex(indices);
-    geo.addAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    geo.addAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    geo.addAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    // geo.normalizeNormals();
-    geo.computeVertexNormals();
-    return geo;
 }
-exports.newTerrain = newTerrain;
+exports.default = Player;
+;
+
+
+/***/ }),
+
+/***/ "./src/projectile/projectile.ts":
+/*!**************************************!*\
+  !*** ./src/projectile/projectile.ts ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+class Projectile {
+    constructor(position, rotation) {
+        this.speed = 80;
+        var geometry = new three_1.SphereGeometry(0.3, 32, 32);
+        geometry.applyMatrix(new three_1.Matrix4().makeScale(1, 0.1, 1));
+        var material = new three_1.MeshBasicMaterial({ color: 0x00ffff });
+        this.object = new three_1.Mesh(geometry, material);
+        this.object.position.copy(position);
+        this.object.quaternion.copy(rotation);
+        this.raycaster = new three_1.Raycaster();
+    }
+    // move projectile in rotation direction
+    update(delta) {
+        this.object.translateZ(-this.speed * delta);
+    }
+}
+exports.default = Projectile;
+
+
+/***/ }),
+
+/***/ "./src/terrain/terrain.ts":
+/*!********************************!*\
+  !*** ./src/terrain/terrain.ts ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const open_simplex_noise_1 = __webpack_require__(/*! open-simplex-noise */ "./node_modules/open-simplex-noise/lib/index.js");
+class Terrain {
+    constructor(width, height, widthSegments, heightSegments) {
+        this.noiseGen = new open_simplex_noise_1.default(Date.now());
+        this.detailFactor = 0.02;
+        this.heightFactor = 50;
+        var geometry = this.newGeometry(width, height, widthSegments, heightSegments);
+        var material = this.newMaterial();
+        this.mesh = new three_1.Mesh(geometry, material);
+    }
+    getHeight(x, y) {
+        return (this.noiseGen.noise2D(x * this.detailFactor, y * this.detailFactor) + 1) * 50;
+    }
+    newMaterial() {
+        return new three_1.MeshLambertMaterial({
+            color: 0x00ff00,
+            wireframe: true,
+        });
+    }
+    newGeometry(width, height, widthSegments, heightSegments) {
+        var width_half = width / 2;
+        var height_half = height / 2;
+        var gridX = Math.floor(widthSegments) || 1;
+        var gridY = Math.floor(heightSegments) || 1;
+        var gridX1 = gridX + 1;
+        var gridY1 = gridY + 1;
+        var segment_width = width / gridX;
+        var segment_height = height / gridY;
+        var ix, iy;
+        // buffers
+        var indices = [];
+        var vertices = [];
+        var normals = [];
+        var uvs = [];
+        // generate vertices, normals and uvs
+        for (iy = 0; iy < gridY1; iy++) {
+            var y = iy * segment_height - height_half;
+            for (ix = 0; ix < gridX1; ix++) {
+                var x = ix * segment_width - width_half;
+                const z = this.getHeight(x, y);
+                vertices.push(x, -y, z);
+                normals.push(0, -1, 0);
+                uvs.push(ix / gridX);
+                uvs.push(1 - (iy / gridY));
+            }
+        }
+        // indices
+        for (iy = 0; iy < gridY; iy++) {
+            for (ix = 0; ix < gridX; ix++) {
+                var a = ix + gridX1 * iy;
+                var b = ix + gridX1 * (iy + 1);
+                var c = (ix + 1) + gridX1 * (iy + 1);
+                var d = (ix + 1) + gridX1 * iy;
+                // faces
+                indices.push(a, b, d);
+                indices.push(b, c, d);
+            }
+        }
+        // build geometry
+        let geo = new three_1.BufferGeometry();
+        geo.setIndex(indices);
+        geo.addAttribute('position', new three_1.Float32BufferAttribute(vertices, 3));
+        geo.addAttribute('normal', new three_1.Float32BufferAttribute(normals, 3));
+        geo.addAttribute('uv', new three_1.Float32BufferAttribute(uvs, 2));
+        // geo.normalizeNormals();
+        geo.computeVertexNormals();
+        return geo;
+    }
+}
+exports.default = Terrain;
 
 
 /***/ }),
