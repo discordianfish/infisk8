@@ -24,7 +24,7 @@ export default class Projectile {
   raycaster: Raycaster
   game: Game
   particleSystem: ParticleSystem
-  exploding: boolean
+  exploded: number
 
   constructor(game: Game, position: Vector3, rotation: Quaternion) {
     this.game = game;
@@ -40,20 +40,35 @@ export default class Projectile {
     this.particleSystem = new ParticleSystem(game.scene, game.camera)
   }
 
+  finish(): void {
+    this.game.scene.remove(this.particleSystem);
+  }
+
   // move projectile in rotation direction
-  update(delta: number): void {
-    if (this.exploding) {
+  update(delta: number): boolean {
+    if (this.exploded != null) {
+      if (performance.now() - this.exploded > 4000) {
+        this.finish();
+        return true;
+      }
       this.particleSystem.draw();
-      return
+      return false
+    }
+    if (this.object.position.length() > 1000) {
+      console.log("projectile expired")
+      this.finish()
+      return true
     }
     this.object.translateZ(-this.speed * delta);
     if (this.game.registerHit(this.object.position, this.object.quaternion)) {
       this.explode()
     }
+    return false
   }
 
   explode(): void {
-    this.exploding = true;
+    this.exploded = performance.now();
+    this.game.scene.remove(this.object);
     this.game.scene.add(this.smokeEmitter(this.object.position, this.object.quaternion));
     this.game.scene.add(this.blastEmitter(this.object.position, this.object.quaternion));
   }

@@ -82,8 +82,13 @@ export default class Player {
   }
 
   update(delta: number) {
+    let projectiles = []
     for (let projectile of this.projectiles) {
-      projectile.update(delta)
+      if (!projectile.update(delta)) {
+        projectiles.push(projectile)
+      }
     }
+    console.log("Number of active projectiles: ", projectiles.length)
+    this.projectiles = projectiles;
   }
 };

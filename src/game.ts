@@ -46,7 +46,7 @@ export default class Game {
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
     let renderer = new WebGLRenderer()
-    renderer.setClearColor(0xdead23);
+    renderer.setClearColor(0x0000ff);
     this.renderer = renderer;
 
     this.controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
