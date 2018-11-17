@@ -1,6 +1,7 @@
 import {
   Object3D,
   BufferGeometry,
+  Intersection,
   Camera,
   Float32BufferAttribute,
   DirectionalLight,
@@ -46,7 +47,7 @@ export default class Game {
     this.window = window
     this.debug = debug
     this.scene = new Scene()
-    this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
+    this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000)
     let renderer = new WebGLRenderer()
     renderer.autoClear = false;
     renderer.setClearColor(0xBDFFFD);
@@ -82,8 +83,7 @@ export default class Game {
 
     lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player)
 
-
-    this.player.object.position.y = this.findGround(this.player.object.position)
+    this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 10
 
     this.velocity = new Vector3();
     this.prevTime = performance.now();
@@ -93,34 +93,34 @@ export default class Game {
   registerHit(object: Object3D): boolean {
     let position = object.getWorldPosition(new Vector3())
     let direction = object.getWorldDirection(new Vector3()).negate()
-    // console.log("projectile world pos", position);
+    let intersections = this.raycast(position, direction, [this.terrain.mesh]);
 
-    //let far = this.raycaster.far;
-    //this.raycaster.far = 1;
-    this.raycaster.set(position, direction);
-    if (this.debug) {
-      this.scene.add(new ArrowHelper(direction, position, 10, 0x00ffff));
-    }
-
-    let intersections = this.raycaster.intersectObjects([this.terrain.mesh]);
-    // this.raycaster.far = far;
     if (intersections.length == 0) {
       return false
     }
-    return intersections[0].distance < 5
+    return intersections[0].distance < 3;
   }
-  findGround(position: Vector3): number {
-    var rayOffset = 100;
-    var rayOrigin = new Vector3().copy(position)
-    rayOrigin.y += rayOffset;
-    this.raycaster.set(rayOrigin, vectorDown)
 
-    var intersections = this.raycaster.intersectObject(this.terrain.mesh);
+  raycast(position: Vector3, direction: Vector3, objects: Array<Mesh>, debug?: boolean) {
+    let dir = direction.clone().normalize();
+    this.raycaster.set(position, dir);
+    if (debug) {
+      let pos = position.clone()
+      pos.y -= 100
+      this.scene.add(new ArrowHelper(direction, pos, 10, 0xffff00));
+    }
+    return this.raycaster.intersectObjects(objects);
+  }
+
+  findGround(position: Vector3, defaultGround: number): number {
+    let origin = new Vector3().copy(position);
+    origin.y = 10000;
+    var intersections = this.raycast(origin, vectorDown, [this.terrain.mesh]);
     if (intersections.length == 0) {
       console.log("Couldn't find ground, spawning at default level");
-      return 100;
+      return defaultGround;
     } else {
-      return intersections[0].point.y + 10;
+      return intersections[0].point.y;
     }
   }
 
@@ -128,10 +128,8 @@ export default class Game {
     var rayOffset = 100;
     var rayOrigin = new Vector3().copy(this.player.object.position)
     rayOrigin.y += rayOffset;
-    this.raycaster.set(rayOrigin, new Vector3(0, -1, 0))
-
     var groundLevel;
-    var intersections = this.raycaster.intersectObject(this.terrain.mesh);
+    let intersections = this.raycast(rayOrigin, vectorDown, [this.terrain.mesh])
     if (intersections.length > 0) {
       groundLevel = intersections[0].point.y;
 
