@@ -52974,6 +52974,54 @@ exports.default = Controls;
 
 /***/ }),
 
+/***/ "./src/enemy.ts":
+/*!**********************!*\
+  !*** ./src/enemy.ts ***!
+  \**********************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const rigidbody_1 = __webpack_require__(/*! ./rigidbody */ "./src/rigidbody.ts");
+const lathePoints = [
+    new three_1.Vector2(0, 2.0),
+    new three_1.Vector2(0.1, 2.0),
+    new three_1.Vector2(0.2, 1.9),
+    new three_1.Vector2(0.2, 1.7),
+    new three_1.Vector2(0.1, 1.5),
+    new three_1.Vector2(0.1, 1.4),
+    new three_1.Vector2(0.3, 1.3),
+    new three_1.Vector2(0.3, 1.2),
+    new three_1.Vector2(0.1, 1.2),
+    new three_1.Vector2(0.1, 1.1),
+    new three_1.Vector2(0.3, 1.1),
+    new three_1.Vector2(0.1, 0.2),
+    new three_1.Vector2(0.2, 0.05),
+    new three_1.Vector2(0, 0),
+];
+class Enemy {
+    constructor(game, name) {
+        this.name = name;
+        var geometry = new three_1.LatheGeometry(lathePoints);
+        var material = new three_1.MeshPhysicalMaterial({ color: 0xff0000 });
+        material.side = three_1.DoubleSide;
+        var lathe = new three_1.Mesh(geometry, material);
+        game.scene.add(lathe);
+        this.object = lathe;
+        this.rigidbody = new rigidbody_1.default(game, this.object);
+    }
+    update(delta) {
+        this.rigidbody.update(delta);
+    }
+}
+exports.default = Enemy;
+
+
+/***/ }),
+
 /***/ "./src/game.ts":
 /*!*********************!*\
   !*** ./src/game.ts ***!
@@ -52990,18 +53038,19 @@ const lock_pointer_1 = __webpack_require__(/*! ./lock_pointer */ "./src/lock_poi
 const terrain_1 = __webpack_require__(/*! ./terrain/terrain */ "./src/terrain/terrain.ts");
 const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
 const hud_1 = __webpack_require__(/*! ./hud */ "./src/hud.ts");
+const enemy_1 = __webpack_require__(/*! ./enemy */ "./src/enemy.ts");
 const vectorDown = new three_1.Vector3(0, -1, 0);
 class Game {
     constructor(window, document, debug) {
         this.window = window;
         this.debug = debug;
+        this.enemies = [];
         this.scene = new three_1.Scene();
-        this.camera = new three_1.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+        this.camera = new three_1.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
         let renderer = new three_1.WebGLRenderer();
         renderer.autoClear = false;
         renderer.setClearColor(0xBDFFFD);
         this.renderer = renderer;
-        this.controls = new controls_1.default(document, document.getElementById('blocker'), document.getElementById('instructions'));
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
         let light = new three_1.DirectionalLight(0xffffff, 1.0);
@@ -53011,79 +53060,67 @@ class Game {
         light2.position.set(-100, 100, -100);
         this.scene.add(light2);
         this.hud = new hud_1.default(window, document);
-        this.raycaster = new three_1.Raycaster(); // new Vector3(), new Vector3( 0, -1, 0 ), 0, 10 );
-        const size = 1000;
-        this.terrain = new terrain_1.default(size, size, size / 5, size / 5);
+        this.raycaster = new three_1.Raycaster();
+        this.terrainSize = 1000;
+        this.terrain = new terrain_1.default(this.terrainSize, this.terrainSize, this.terrainSize / 5, this.terrainSize / 5);
         this.terrain.mesh.rotation.x = -Math.PI / 2; // FIXME: Generate geometry in correct orientation right away..
         this.scene.add(this.terrain.mesh);
         this.render();
-        this.player = new player_1.default(document, this);
+        this.render(); // FIXME: Somehow we need to render twice for the findGround raycast to work.
+        let controls = new controls_1.default(document, document.getElementById('blocker'), document.getElementById('instructions'));
+        this.player = new player_1.default(document, this, controls);
         this.scene.add(this.player.object);
         this.player.addEventListeners();
         this.addEventListeners();
         lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player);
-        this.player.object.position.y = this.findGround(this.player.object.position);
-        this.velocity = new three_1.Vector3();
+        this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 20;
+        for (let i = 0; i <= 10; i++) {
+            this.spawnEnemy("foo-" + i);
+        }
         this.prevTime = performance.now();
+    }
+    spawnEnemy(name) {
+        let enemy = new enemy_1.default(this, name);
+        enemy.object.position.x = Math.random() * this.terrainSize;
+        enemy.object.position.z = Math.random() * this.terrainSize;
+        enemy.object.position.y = this.findGround(enemy.object.position, 1000);
+        this.enemies.push(enemy);
     }
     // returns true if hit is registered.
     registerHit(object) {
         let position = object.getWorldPosition(new three_1.Vector3());
         let direction = object.getWorldDirection(new three_1.Vector3()).negate();
-        // console.log("projectile world pos", position);
-        //let far = this.raycaster.far;
-        //this.raycaster.far = 1;
-        this.raycaster.set(position, direction);
-        if (this.debug) {
-            this.scene.add(new three_1.ArrowHelper(direction, position, 10, 0x00ffff));
-        }
-        let intersections = this.raycaster.intersectObjects([this.terrain.mesh]);
-        // this.raycaster.far = far;
+        let intersections = this.raycast(position, direction, [this.terrain.mesh]);
         if (intersections.length == 0) {
             return false;
         }
-        return intersections[0].distance < 5;
+        return intersections[0].distance < 3;
     }
-    findGround(position) {
-        var rayOffset = 100;
-        var rayOrigin = new three_1.Vector3().copy(position);
-        rayOrigin.y += rayOffset;
-        this.raycaster.set(rayOrigin, vectorDown);
-        var intersections = this.raycaster.intersectObject(this.terrain.mesh);
+    // Raycast hitting everything ridigbody etc should collide with.
+    raycastAll(position, direction, debug) {
+        return this.raycast(position, direction, [this.terrain.mesh], debug);
+    }
+    raycast(position, direction, objects, debug) {
+        let dir = direction.clone().normalize();
+        this.raycaster.set(position, dir);
+        if (debug) {
+            let pos = position.clone();
+            pos.y -= 100;
+            this.scene.add(new three_1.ArrowHelper(direction, pos, 10, 0xffff00));
+        }
+        return this.raycaster.intersectObjects(objects);
+    }
+    findGround(position, defaultGround) {
+        let origin = new three_1.Vector3().copy(position);
+        origin.y = 10000;
+        var intersections = this.raycast(origin, vectorDown, [this.terrain.mesh]);
         if (intersections.length == 0) {
             console.log("Couldn't find ground, spawning at default level");
-            return 100;
+            return defaultGround;
         }
         else {
-            return intersections[0].point.y + 10;
+            return intersections[0].point.y;
         }
-    }
-    groundCheck() {
-        var rayOffset = 100;
-        var rayOrigin = new three_1.Vector3().copy(this.player.object.position);
-        rayOrigin.y += rayOffset;
-        this.raycaster.set(rayOrigin, new three_1.Vector3(0, -1, 0));
-        var groundLevel;
-        var intersections = this.raycaster.intersectObject(this.terrain.mesh);
-        if (intersections.length > 0) {
-            groundLevel = intersections[0].point.y;
-            var groundDistance = intersections[0].distance - rayOffset;
-            if (groundDistance < 1) {
-                var n = intersections[0].face.normal;
-                // convert local normal to world position.. I think..?
-                var normalMatrix = new three_1.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
-                var normal = n.clone().applyMatrix3(normalMatrix).normalize();
-                var reflection = new three_1.Vector3().copy(this.velocity); // this.player.object.position);
-                // reflection.reflect(normal);
-                reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
-                if (this.debug) {
-                    this.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
-                    this.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
-                }
-                this.velocity = reflection;
-            }
-        }
-        return groundLevel;
     }
     update() {
         requestAnimationFrame(() => this.update());
@@ -53094,35 +53131,7 @@ class Game {
         var delta = (time - this.prevTime) / 1000;
         this.prevTime = time;
         this.player.update(delta);
-        var groundLevel = this.groundCheck();
-        var groundDistance = this.player.object.position.y - groundLevel;
-        var onGround = groundDistance < 1;
-        var direction = this.controls.input();
-        var speed = 20;
-        var controlVelocity = new three_1.Vector3();
-        if (onGround || this.controls.boost) {
-            controlVelocity.z -= direction.z * speed * delta;
-            controlVelocity.x -= direction.x * speed * delta;
-            controlVelocity.y += (direction.y * speed); // * delta;
-        }
-        controlVelocity.y += Number(this.controls.boost) * speed * delta;
-        controlVelocity.z -= Number(this.controls.boost) * speed * delta;
-        // We don't translate this.player.object directly so we have one motion vector and
-        // we can include the momentum in the reflection on terrain collision.
-        controlVelocity.applyQuaternion(this.player.object.quaternion);
-        this.velocity.add(controlVelocity);
-        if (this.player.object.position.y < groundLevel) {
-            this.player.object.position.y = groundLevel;
-            this.velocity.z += this.velocity.y;
-            this.velocity.y = 0;
-        }
-        // velocity.x -= velocity.x * 1.0 * delta;
-        // velocity.z -= velocity.z * 1.0 * delta;
-        this.velocity.y -= 9.8 * delta;
-        this.player.object.position.add(this.velocity.clone().multiplyScalar(delta));
-        if (this.controls.fire) {
-            this.player.fire();
-        }
+        this.enemies.forEach((enemy) => enemy.update(delta));
         this.render();
     }
     render() {
@@ -53261,15 +53270,18 @@ exports.lockPointer = lockPointer;
 Object.defineProperty(exports, "__esModule", { value: true });
 const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
 const projectile_1 = __webpack_require__(/*! ../projectile/projectile */ "./src/projectile/projectile.ts");
+const rigidbody_1 = __webpack_require__(/*! ../rigidbody */ "./src/rigidbody.ts");
 var PI_2 = Math.PI / 2;
 const vector3Zero = new three_1.Vector3();
 const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
 const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
 class Player {
-    constructor(document, game) {
+    constructor(document, game, controls) {
         this.document = document;
         this.game = game;
+        this.controls = controls;
         this.cooldown = 1000;
+        this.speed = 20;
         this.lastFired = performance.now();
         this.plElement = document.body;
         this.isLocked = false;
@@ -53278,6 +53290,7 @@ class Player {
         this.pitchObject.add(game.camera);
         this.object = new three_1.Object3D();
         this.object.add(this.pitchObject);
+        this.rigidbody = new rigidbody_1.default(game, this.object);
         this.projectiles = [];
     }
     onMouseMove(event) {
@@ -53300,7 +53313,7 @@ class Player {
         }
     }
     onPointerlockError() {
-        console.error('THREE.PointerLockControls: Unable to use Pointer Lock API');
+        console.log('THREE.PointerLockControls: Unable to use Pointer Lock API');
     }
     addEventListeners() {
         this.document.addEventListener('mousemove', e => this.onMouseMove(e), false);
@@ -53326,6 +53339,23 @@ class Player {
         this.projectiles.push(projectile);
     }
     update(delta) {
+        // Apply controls
+        let direction = this.controls.input();
+        let controlVelocity = new three_1.Vector3();
+        if (this.rigidbody.onGround || this.controls.boost) {
+            controlVelocity.z -= direction.z * this.speed * delta;
+            controlVelocity.x -= direction.x * this.speed * delta;
+            controlVelocity.y += direction.y * this.speed;
+        }
+        controlVelocity.y += Number(this.controls.boost) * this.speed * delta;
+        controlVelocity.z -= Number(this.controls.boost) * this.speed * delta;
+        controlVelocity.applyQuaternion(this.object.quaternion);
+        this.rigidbody.velocity.add(controlVelocity);
+        // Other controls
+        if (this.controls.fire) {
+            this.fire();
+        }
+        // Update projectiles
         let projectiles = [];
         for (let projectile of this.projectiles) {
             if (!projectile.update(delta)) {
@@ -53334,6 +53364,8 @@ class Player {
         }
         // console.log("Number of active projectiles: ", projectiles.length)
         this.projectiles = projectiles;
+        // Apply collision based momentum
+        this.rigidbody.update(delta);
     }
 }
 exports.default = Player;
@@ -53452,6 +53484,71 @@ class Projectile {
     }
 }
 exports.default = Projectile;
+
+
+/***/ }),
+
+/***/ "./src/rigidbody.ts":
+/*!**************************!*\
+  !*** ./src/rigidbody.ts ***!
+  \**************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const vectorDown = new three_1.Vector3(0, -1, 0);
+class Rigidbody {
+    constructor(game, object) {
+        this.game = game;
+        this.object = object;
+        this.velocity = new three_1.Vector3();
+        this.dragX = 0;
+        this.dragY = 0;
+    }
+    update(delta) {
+        let groundLevel = this.groundCheck();
+        let groundDistance = this.object.position.y - groundLevel;
+        this.onGround = groundDistance < 1;
+        if (this.object.position.y < groundLevel) {
+            this.object.position.y = groundLevel;
+            this.velocity.z += this.velocity.y;
+            this.velocity.y = 0;
+        }
+        this.velocity.x -= this.velocity.x * this.dragX * delta;
+        this.velocity.z -= this.velocity.z * this.dragY * delta;
+        this.velocity.y -= 9.8 * delta;
+        this.object.position.add(this.velocity.clone().multiplyScalar(delta));
+    }
+    groundCheck() {
+        var rayOffset = 100;
+        var rayOrigin = new three_1.Vector3().copy(this.object.position);
+        rayOrigin.y += rayOffset;
+        var groundLevel;
+        let intersections = this.game.raycastAll(rayOrigin, vectorDown);
+        if (intersections.length > 0) {
+            groundLevel = intersections[0].point.y;
+            var groundDistance = intersections[0].distance - rayOffset;
+            if (groundDistance < 1) {
+                var n = intersections[0].face.normal;
+                // convert local normal to world position.. I think..?
+                var normalMatrix = new three_1.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
+                var normal = n.clone().applyMatrix3(normalMatrix).normalize();
+                var reflection = new three_1.Vector3().copy(this.velocity);
+                reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+                if (this.debug) {
+                    this.game.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
+                    this.game.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
+                }
+                this.velocity = reflection;
+            }
+        }
+        return groundLevel;
+    }
+}
+exports.default = Rigidbody;
 
 
 /***/ }),
