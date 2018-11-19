@@ -8,6 +8,7 @@ import {
 } from 'three';
 
 import Game from './game';
+import Rigidbody from './rigidbody';
 
 const lathePoints = [
   new Vector2(0, 2.0),
@@ -29,6 +30,7 @@ const lathePoints = [
 export default class Enemy {
   name: string
   object: Object3D
+  rigidbody: Rigidbody
 
   constructor(game: Game, name: string) {
     this.name = name
@@ -38,5 +40,10 @@ export default class Enemy {
     var lathe = new Mesh(geometry, material);
     game.scene.add(lathe)
     this.object = lathe
+    this.rigidbody = new Rigidbody(game, this.object)
+  }
+
+  update(delta: number): void {
+    this.rigidbody.update(delta);
   }
 }

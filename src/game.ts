@@ -70,13 +70,14 @@ export default class Game {
 
     this.hud = new HUD(window, document);
 
-    this.raycaster = new Raycaster(); // new Vector3(), new Vector3( 0, -1, 0 ), 0, 10 );
+    this.raycaster = new Raycaster();
 
     this.terrainSize = 1000;
     this.terrain = new Terrain(this.terrainSize, this.terrainSize, this.terrainSize/5, this.terrainSize/5)
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
     this.render()
+    this.render() // FIXME: Somehow we need to render twice for the findGround raycast to work.
 
     let controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
     this.player = new Player(document, this, controls);
@@ -86,9 +87,9 @@ export default class Game {
 
     lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player)
 
-    this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 10
+    this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 20
 
-    for (let i = 0; i <= 100; i++) {
+    for (let i = 0; i <= 10; i++) {
       this.spawnEnemy("foo-"+i)
     }
     this.prevTime = performance.now();
@@ -152,6 +153,7 @@ export default class Game {
     this.prevTime = time;
 
     this.player.update(delta);
+    this.enemies.forEach((enemy) => enemy.update(delta));
     this.render()
   }
 
