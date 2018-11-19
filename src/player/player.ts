@@ -1,6 +1,8 @@
 import {Object3D, Scene, Vector3, Quaternion} from 'three';
 import Projectile from '../projectile/projectile';
 import Game from '../game';
+import Rigidbody from '../rigidbody';
+import Controls from '../controls';
 
 var PI_2 = Math.PI / 2;
 
@@ -12,32 +14,38 @@ const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
 export default class Player {
   document: Document
   game: Game
+  rigidbody: Rigidbody
+  controls: Controls
   plElement: HTMLElement
   isLocked: boolean
   object: Object3D
   pitchObject: Object3D
   scene: Scene
   projectiles: Array<Projectile>
+  speed: number
 
   cooldown: number
   lastFired: number
-  constructor(document: Document, game: Game) {
+  constructor(document: Document, game: Game, controls: Controls) {
     this.document = document;
     this.game = game;
+    this.controls = controls
 
     this.cooldown = 1000;
+    this.speed = 20;
     this.lastFired = performance.now();
 
 	  this.plElement = document.body;
 	  this.isLocked = false;
 
-	  game.camera.rotation.set( 0, 0, 0 );
+    game.camera.rotation.set( 0, 0, 0 );
 
 	  this.pitchObject = new Object3D();
 	  this.pitchObject.add(game.camera);
 
 	  this.object = new Object3D();
     this.object.add(this.pitchObject);
+    this.rigidbody = new Rigidbody(game, this.object);
 
     this.projectiles = [];
   }
@@ -51,7 +59,7 @@ export default class Player {
 		this.object.rotation.y -= movementX * 0.002;
 		this.pitchObject.rotation.x -= movementY * 0.002;
 
-		this.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, this.pitchObject.rotation.x));
+    this.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, this.pitchObject.rotation.x));
 	}
 
 	onPointerlockChange() {
@@ -65,7 +73,7 @@ export default class Player {
 	}
 
 	onPointerlockError() {
-		console.error( 'THREE.PointerLockControls: Unable to use Pointer Lock API' );
+		console.log( 'THREE.PointerLockControls: Unable to use Pointer Lock API' );
 	}
 
 	addEventListeners() {
@@ -93,6 +101,25 @@ export default class Player {
   }
 
   update(delta: number) {
+    // Apply controls
+    let direction = this.controls.input();
+    let controlVelocity = new Vector3();
+    if (this.rigidbody.onGround || this.controls.boost) {
+      controlVelocity.z -= direction.z * this.speed * delta;
+      controlVelocity.x -= direction.x * this.speed * delta;
+      controlVelocity.y += direction.y * this.speed;
+    }
+    controlVelocity.y += Number(this.controls.boost) * this.speed * delta;
+    controlVelocity.z -= Number(this.controls.boost) * this.speed * delta;
+    controlVelocity.applyQuaternion(this.object.quaternion);
+    this.rigidbody.velocity.add(controlVelocity);
+
+    // Other controls
+    if (this.controls.fire) {
+      this.fire()
+    }
+
+    // Update projectiles
     let projectiles = []
     for (let projectile of this.projectiles) {
       if (!projectile.update(delta)) {
@@ -101,5 +128,8 @@ export default class Player {
     }
     // console.log("Number of active projectiles: ", projectiles.length)
     this.projectiles = projectiles;
+
+    // Apply collision based momentum
+    this.rigidbody.update(delta)
   }
 };

@@ -26,14 +26,12 @@ import Terrain from './terrain/terrain';
 import Controls from './controls';
 import HUD from './hud';
 import Enemy from './enemy';
-import Rigidbody from './rigidbody';
 
 const vectorDown = new Vector3(0, -1, 0);
 
 export default class Game {
   window: Window
   player: Player
-  playerRB: Rigidbody
   enemies: Array<Enemy>
   controls: Controls
   terrain: Terrain
@@ -58,7 +56,6 @@ export default class Game {
     renderer.setClearColor(0xBDFFFD);
     this.renderer = renderer;
 
-    this.controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
 
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     document.body.appendChild(this.renderer.domElement)
@@ -81,8 +78,8 @@ export default class Game {
     this.scene.add(this.terrain.mesh)
     this.render()
 
-    this.player = new Player(document, this);
-    this.playerRB = new Rigidbody(this, this.player.object);
+    let controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
+    this.player = new Player(document, this, controls);
     this.scene.add(this.player.object)
     this.player.addEventListeners();
     this.addEventListeners();
@@ -155,41 +152,6 @@ export default class Game {
     this.prevTime = time;
 
     this.player.update(delta);
-    this.playerRB.update(delta);
-
-    var direction = this.controls.input();
-
-    var speed = 20
-    var controlVelocity = new Vector3();
-    if (this.playerRB.onGround || this.controls.boost) {
-      controlVelocity.z -= direction.z * speed * delta;
-      controlVelocity.x -= direction.x * speed * delta;
-      controlVelocity.y += (direction.y * speed); // * delta;
-    }
-    controlVelocity.y += Number(this.controls.boost) * speed * delta;
-    controlVelocity.z -= Number(this.controls.boost) * speed * delta;
-
-    // We don't translate this.player.object directly so we have one motion vector and
-    // we can include the momentum in the reflection on terrain collision.
-    controlVelocity.applyQuaternion(this.player.object.quaternion);
-    this.playerRB.velocity.add(controlVelocity);
-
-    /*
-    if (this.player.object.position.y < groundLevel) {
-      this.player.object.position.y = groundLevel;
-      this.velocity.z += this.velocity.y;
-      this.velocity.y = 0;
-    }
-
-    // velocity.x -= velocity.x * 1.0 * delta;
-    // velocity.z -= velocity.z * 1.0 * delta;
-    this.velocity.y -= 9.8 * delta;
-    this.player.object.position.add(this.velocity.clone().multiplyScalar(delta));
-    */
-
-    if (this.controls.fire) {
-      this.player.fire()
-    }
     this.render()
   }
 
