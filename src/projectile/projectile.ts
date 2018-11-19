@@ -21,7 +21,6 @@ import Game from '../game';
 export default class Projectile {
   object: Object3D
   speed: number
-  raycaster: Raycaster
   game: Game
   particleSystem: ParticleSystem
   exploded: number

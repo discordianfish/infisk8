@@ -25,18 +25,21 @@ import {lockPointer} from './lock_pointer';
 import Terrain from './terrain/terrain';
 import Controls from './controls';
 import HUD from './hud';
+import Enemy from './enemy';
 
 const vectorDown = new Vector3(0, -1, 0);
 
 export default class Game {
   window: Window
   player: Player
+  enemies: Array<Enemy>
   controls: Controls
   terrain: Terrain
   scene: Scene
   renderer: WebGLRenderer
   camera: PerspectiveCamera
   hud: HUD
+  terrainSize: number
 
   raycaster: Raycaster
   velocity: Vector3 // player velocity
@@ -46,6 +49,7 @@ export default class Game {
   constructor(window: Window, document: Document, debug: boolean) {
     this.window = window
     this.debug = debug
+    this.enemies = []
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000)
     let renderer = new WebGLRenderer()
@@ -70,8 +74,8 @@ export default class Game {
 
     this.raycaster = new Raycaster(); // new Vector3(), new Vector3( 0, -1, 0 ), 0, 10 );
 
-    const size = 1000;
-    this.terrain = new Terrain(size, size, size/5, size/5)
+    this.terrainSize = 1000;
+    this.terrain = new Terrain(this.terrainSize, this.terrainSize, this.terrainSize/5, this.terrainSize/5)
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
     this.render()
@@ -85,8 +89,19 @@ export default class Game {
 
     this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 10
 
+    for (let i = 0; i <= 100; i++) {
+      this.spawnEnemy("foo-"+i)
+    }
     this.velocity = new Vector3();
     this.prevTime = performance.now();
+  }
+
+  spawnEnemy(name: string): void {
+    let enemy = new Enemy(this, name);
+    enemy.object.position.x = Math.random() * this.terrainSize;
+    enemy.object.position.z = Math.random() * this.terrainSize;
+    enemy.object.position.y = this.findGround(enemy.object.position, 1000);
+    this.enemies.push(enemy);
   }
 
   // returns true if hit is registered.
