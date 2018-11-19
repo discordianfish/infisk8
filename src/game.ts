@@ -26,12 +26,14 @@ import Terrain from './terrain/terrain';
 import Controls from './controls';
 import HUD from './hud';
 import Enemy from './enemy';
+import Rigidbody from './rigidbody';
 
 const vectorDown = new Vector3(0, -1, 0);
 
 export default class Game {
   window: Window
   player: Player
+  playerRB: Rigidbody
   enemies: Array<Enemy>
   controls: Controls
   terrain: Terrain
@@ -42,7 +44,6 @@ export default class Game {
   terrainSize: number
 
   raycaster: Raycaster
-  velocity: Vector3 // player velocity
 
   prevTime: number
   debug: boolean
@@ -81,6 +82,7 @@ export default class Game {
     this.render()
 
     this.player = new Player(document, this);
+    this.playerRB = new Rigidbody(this, this.player.object);
     this.scene.add(this.player.object)
     this.player.addEventListeners();
     this.addEventListeners();
@@ -92,7 +94,6 @@ export default class Game {
     for (let i = 0; i <= 100; i++) {
       this.spawnEnemy("foo-"+i)
     }
-    this.velocity = new Vector3();
     this.prevTime = performance.now();
   }
 
@@ -116,6 +117,10 @@ export default class Game {
     return intersections[0].distance < 3;
   }
 
+  // Raycast hitting everything ridigbody etc should collide with.
+  raycastAll(position: Vector3, direction: Vector3, debug?: boolean) {
+    return this.raycast(position, direction, [ this.terrain.mesh], debug)
+  }
   raycast(position: Vector3, direction: Vector3, objects: Array<Mesh>, debug?: boolean) {
     let dir = direction.clone().normalize();
     this.raycaster.set(position, dir);
@@ -139,36 +144,6 @@ export default class Game {
     }
   }
 
-  groundCheck(): number {
-    var rayOffset = 100;
-    var rayOrigin = new Vector3().copy(this.player.object.position)
-    rayOrigin.y += rayOffset;
-    var groundLevel;
-    let intersections = this.raycast(rayOrigin, vectorDown, [this.terrain.mesh])
-    if (intersections.length > 0) {
-      groundLevel = intersections[0].point.y;
-
-      var groundDistance = intersections[0].distance - rayOffset;
-      if (groundDistance < 1) {
-        var n = intersections[0].face.normal;
-
-        // convert local normal to world position.. I think..?
-        var normalMatrix = new Matrix3().getNormalMatrix( intersections[0].object.matrixWorld );
-        var normal = n.clone().applyMatrix3(normalMatrix).normalize();
-
-        var reflection = new Vector3().copy(this.velocity); // this.player.object.position);
-        // reflection.reflect(normal);
-        reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
-        if (this.debug) {
-          this.scene.add(new ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
-          this.scene.add(new ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
-        }
-        this.velocity = reflection;
-      }
-    }
-    return groundLevel;
-  }
-
   update(): void {
     requestAnimationFrame(() => this.update());
     if (!this.player.isLocked) {
@@ -179,17 +154,14 @@ export default class Game {
     var delta = ( time - this.prevTime ) / 1000;
     this.prevTime = time;
 
-    this.player.update(delta)
-
-    var groundLevel = this.groundCheck();
-    var groundDistance = this.player.object.position.y - groundLevel;
-    var onGround = groundDistance < 1;
+    this.player.update(delta);
+    this.playerRB.update(delta);
 
     var direction = this.controls.input();
 
     var speed = 20
     var controlVelocity = new Vector3();
-    if (onGround || this.controls.boost) {
+    if (this.playerRB.onGround || this.controls.boost) {
       controlVelocity.z -= direction.z * speed * delta;
       controlVelocity.x -= direction.x * speed * delta;
       controlVelocity.y += (direction.y * speed); // * delta;
@@ -200,8 +172,9 @@ export default class Game {
     // We don't translate this.player.object directly so we have one motion vector and
     // we can include the momentum in the reflection on terrain collision.
     controlVelocity.applyQuaternion(this.player.object.quaternion);
-    this.velocity.add(controlVelocity);
+    this.playerRB.velocity.add(controlVelocity);
 
+    /*
     if (this.player.object.position.y < groundLevel) {
       this.player.object.position.y = groundLevel;
       this.velocity.z += this.velocity.y;
@@ -212,7 +185,7 @@ export default class Game {
     // velocity.z -= velocity.z * 1.0 * delta;
     this.velocity.y -= 9.8 * delta;
     this.player.object.position.add(this.velocity.clone().multiplyScalar(delta));
-
+    */
 
     if (this.controls.fire) {
       this.player.fire()
