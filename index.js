@@ -53066,14 +53066,14 @@ class Game {
         this.terrain.mesh.rotation.x = -Math.PI / 2; // FIXME: Generate geometry in correct orientation right away..
         this.scene.add(this.terrain.mesh);
         this.render();
-        this.render(); // FIXME: Somehow we need to render twice for the findGround raycast to work.
         let controls = new controls_1.default(document, document.getElementById('blocker'), document.getElementById('instructions'));
         this.player = new player_1.default(document, this, controls);
+        this.player.object.position.y = 1000;
         this.scene.add(this.player.object);
         this.player.addEventListeners();
         this.addEventListeners();
         lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player);
-        this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 20;
+        this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20;
         for (let i = 0; i <= 10; i++) {
             this.spawnEnemy("foo-" + i);
         }
@@ -53083,7 +53083,7 @@ class Game {
         let enemy = new enemy_1.default(this, name);
         enemy.object.position.x = Math.random() * this.terrainSize;
         enemy.object.position.z = Math.random() * this.terrainSize;
-        enemy.object.position.y = this.findGround(enemy.object.position, 1000);
+        enemy.object.position.y = this.terrain.getHeight(enemy.object.position.x, enemy.object.position.z) + 20;
         this.enemies.push(enemy);
     }
     // returns true if hit is registered.
@@ -53109,18 +53109,6 @@ class Game {
             this.scene.add(new three_1.ArrowHelper(direction, pos, 10, 0xffff00));
         }
         return this.raycaster.intersectObjects(objects);
-    }
-    findGround(position, defaultGround) {
-        let origin = new three_1.Vector3().copy(position);
-        origin.y = 10000;
-        var intersections = this.raycast(origin, vectorDown, [this.terrain.mesh]);
-        if (intersections.length == 0) {
-            console.log("Couldn't find ground, spawning at default level");
-            return defaultGround;
-        }
-        else {
-            return intersections[0].point.y;
-        }
     }
     update() {
         requestAnimationFrame(() => this.update());
@@ -53512,11 +53500,7 @@ class Rigidbody {
         let groundLevel = this.groundCheck();
         let groundDistance = this.object.position.y - groundLevel;
         this.onGround = groundDistance < 1;
-        if (this.object.position.y < groundLevel) {
-            this.object.position.y = groundLevel;
-            this.velocity.z += this.velocity.y;
-            this.velocity.y = 0;
-        }
+        this.object.position.y = Math.max(this.object.position.y, groundLevel);
         this.velocity.x -= this.velocity.x * this.dragX * delta;
         this.velocity.z -= this.velocity.z * this.dragY * delta;
         this.velocity.y -= 9.8 * delta;
@@ -53526,24 +53510,24 @@ class Rigidbody {
         var rayOffset = 100;
         var rayOrigin = new three_1.Vector3().copy(this.object.position);
         rayOrigin.y += rayOffset;
-        var groundLevel;
-        let intersections = this.game.raycastAll(rayOrigin, vectorDown);
-        if (intersections.length > 0) {
-            groundLevel = intersections[0].point.y;
-            var groundDistance = intersections[0].distance - rayOffset;
-            if (groundDistance < 1) {
-                var n = intersections[0].face.normal;
-                // convert local normal to world position.. I think..?
-                var normalMatrix = new three_1.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
-                var normal = n.clone().applyMatrix3(normalMatrix).normalize();
-                var reflection = new three_1.Vector3().copy(this.velocity);
-                reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
-                if (this.debug) {
-                    this.game.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
-                    this.game.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
-                }
-                this.velocity = reflection;
+        var groundLevel = this.game.terrain.getHeight(this.object.position.x, this.object.position.z);
+        var groundDistance = this.object.position.y - groundLevel;
+        if (groundDistance < 1) {
+            let intersections = this.game.raycastAll(rayOrigin, vectorDown);
+            if (intersections.length == 0) {
+                return 0;
             }
+            var n = intersections[0].face.normal;
+            // convert local normal to world position.. I think..?
+            var normalMatrix = new three_1.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
+            var normal = n.clone().applyMatrix3(normalMatrix).normalize();
+            var reflection = new three_1.Vector3().copy(this.velocity);
+            reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+            if (this.debug) {
+                this.game.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
+                this.game.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
+            }
+            this.velocity = reflection;
         }
         return groundLevel;
     }
