@@ -77,17 +77,17 @@ export default class Game {
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
     this.render()
-    this.render() // FIXME: Somehow we need to render twice for the findGround raycast to work.
 
     let controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
     this.player = new Player(document, this, controls);
+    this.player.object.position.y = 1000;
     this.scene.add(this.player.object)
     this.player.addEventListeners();
     this.addEventListeners();
 
     lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player)
 
-    this.player.object.position.y = this.findGround(this.player.object.position, 1000) + 20
+    this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20
 
     for (let i = 0; i <= 10; i++) {
       this.spawnEnemy("foo-"+i)
@@ -99,7 +99,7 @@ export default class Game {
     let enemy = new Enemy(this, name);
     enemy.object.position.x = Math.random() * this.terrainSize;
     enemy.object.position.z = Math.random() * this.terrainSize;
-    enemy.object.position.y = this.findGround(enemy.object.position, 1000);
+    enemy.object.position.y = this.terrain.getHeight(enemy.object.position.x, enemy.object.position.z) + 20;
     this.enemies.push(enemy);
   }
 
@@ -128,18 +128,6 @@ export default class Game {
       this.scene.add(new ArrowHelper(direction, pos, 10, 0xffff00));
     }
     return this.raycaster.intersectObjects(objects);
-  }
-
-  findGround(position: Vector3, defaultGround: number): number {
-    let origin = new Vector3().copy(position);
-    origin.y = 10000;
-    var intersections = this.raycast(origin, vectorDown, [this.terrain.mesh]);
-    if (intersections.length == 0) {
-      console.log("Couldn't find ground, spawning at default level");
-      return defaultGround;
-    } else {
-      return intersections[0].point.y;
-    }
   }
 
   update(): void {

@@ -41,28 +41,29 @@ export default class Rigidbody {
     var rayOffset = 100;
     var rayOrigin = new Vector3().copy(this.object.position)
     rayOrigin.y += rayOffset;
-    var groundLevel;
-    let intersections = this.game.raycastAll(rayOrigin, vectorDown)
-    if (intersections.length > 0) {
-      groundLevel = intersections[0].point.y;
+    var groundLevel = this.game.terrain.getHeight(this.object.position.x, this.object.position.z);
+    var groundDistance = this.object.position.y - groundLevel;
 
-      var groundDistance = intersections[0].distance - rayOffset;
-      if (groundDistance < 1) {
-        var n = intersections[0].face.normal;
-
-        // convert local normal to world position.. I think..?
-        var normalMatrix = new Matrix3().getNormalMatrix( intersections[0].object.matrixWorld );
-        var normal = n.clone().applyMatrix3(normalMatrix).normalize();
-
-        var reflection = new Vector3().copy(this.velocity);
-        reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
-
-        if (this.debug) {
-          this.game.scene.add(new ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
-          this.game.scene.add(new ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
-        }
-        this.velocity = reflection;
+    if (groundDistance < 1) {
+      let intersections = this.game.raycastAll(rayOrigin, vectorDown)
+      if (intersections.length == 0) {
+        return 0
       }
+
+      var n = intersections[0].face.normal;
+
+      // convert local normal to world position.. I think..?
+      var normalMatrix = new Matrix3().getNormalMatrix( intersections[0].object.matrixWorld );
+      var normal = n.clone().applyMatrix3(normalMatrix).normalize();
+
+      var reflection = new Vector3().copy(this.velocity);
+      reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+
+      if (this.debug) {
+        this.game.scene.add(new ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
+        this.game.scene.add(new ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
+      }
+      this.velocity = reflection;
     }
     return groundLevel;
   }
