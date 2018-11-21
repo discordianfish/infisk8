@@ -53013,7 +53013,14 @@ class Enemy {
         this.object = lathe;
         this.rigidbody = new rigidbody_1.default(game, this.object);
     }
+    die() {
+        this.died = performance.now();
+        console.log("Died!");
+    }
     update(delta) {
+        if (this.died != null) {
+            this.object.scale.multiplyScalar(delta);
+        }
         this.rigidbody.update(delta);
     }
 }
@@ -53074,23 +53081,40 @@ class Game {
         this.addEventListeners();
         lock_pointer_1.lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player);
         this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20;
-        for (let i = 0; i <= 10; i++) {
+        for (let i = 0; i <= 50; i++) {
             this.spawnEnemy("foo-" + i);
         }
         this.prevTime = performance.now();
     }
     spawnEnemy(name) {
         let enemy = new enemy_1.default(this, name);
-        enemy.object.position.x = Math.random() * this.terrainSize;
-        enemy.object.position.z = Math.random() * this.terrainSize;
+        enemy.object.position.x = Math.random() * 20;
+        enemy.object.position.z = Math.random() * 20;
         enemy.object.position.y = this.terrain.getHeight(enemy.object.position.x, enemy.object.position.z) + 20;
         this.enemies.push(enemy);
     }
-    // returns true if hit is registered.
+    // returns true if hit is registered with non-terrain.
     registerHit(object) {
+        let explode = false;
+        this.enemies.forEach((enemy) => {
+            let d = enemy.object.position.distanceTo(object.position);
+            // console.log("distance to enemy:", d)
+            if (d < 2) {
+                this.score("Body Hit!", 100);
+                enemy.die();
+                explode = true;
+            }
+        });
+        return explode;
+    }
+    score(message, score) {
+        this.hud.flash(message);
+        this.scoreCounter += score;
+    }
+    registerHitRaycast(object) {
         let position = object.getWorldPosition(new three_1.Vector3());
         let direction = object.getWorldDirection(new three_1.Vector3()).negate();
-        let intersections = this.raycast(position, direction, [this.terrain.mesh]);
+        let intersections = this.raycast(position, direction, this.enemies.map((e) => e.object));
         if (intersections.length == 0) {
             return false;
         }
@@ -53098,6 +53122,9 @@ class Game {
     }
     // Raycast hitting everything ridigbody etc should collide with.
     raycastAll(position, direction, debug) {
+        return this.raycast(position, direction, [this.terrain.mesh], debug);
+    }
+    raycastTerrain(position, direction, debug) {
         return this.raycast(position, direction, [this.terrain.mesh], debug);
     }
     raycast(position, direction, objects, debug) {
@@ -53120,6 +53147,7 @@ class Game {
         this.prevTime = time;
         this.player.update(delta);
         this.enemies.forEach((enemy) => enemy.update(delta));
+        this.hud.update(delta);
         this.render();
     }
     render() {
@@ -53159,19 +53187,38 @@ class HUD {
         let canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        let bitmap = canvas.getContext('2d');
-        bitmap.font = 'Normal 40px Sans-Serif';
-        bitmap.textAlign = 'center';
-        bitmap.fillText("+", width / 2, height / 2);
+        this.canvas = canvas;
+        this.texture = new three_1.Texture(canvas);
+        this.flashTimeout = 1000;
+        this.cc = canvas.getContext('2d');
+        this.cc.textAlign = 'center';
         this.camera = new three_1.OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 0, 30);
         this.scene = new three_1.Scene();
-        var texture = new three_1.Texture(canvas);
-        texture.needsUpdate = true;
-        let material = new three_1.MeshBasicMaterial({ map: texture });
+        this.drawCrosshair();
+        let material = new three_1.MeshBasicMaterial({ map: this.texture });
         material.transparent = true;
         var geometry = new three_1.PlaneGeometry(width, height);
         var plane = new three_1.Mesh(geometry, material);
         this.scene.add(plane);
+    }
+    drawCrosshair() {
+        this.cc.font = 'Normal 40px Sans-Serif';
+        this.cc.fillStyle = 'rgb(255, 0, 0)';
+        this.cc.fillText("+", this.canvas.width / 2, this.canvas.height / 2);
+        this.texture.needsUpdate = true;
+    }
+    flash(message) {
+        this.cc.font = 'Normal 60px Sans-Serif';
+        this.cc.fillStyle = 'rgb(255, 0, 255)';
+        this.cc.fillText(message, this.canvas.width / 2, this.canvas.height / 4);
+        this.texture.needsUpdate = true;
+        this.flashed = performance.now();
+    }
+    update(delta) {
+        if (performance.now() - this.flashed > this.flashTimeout) {
+            this.cc.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.drawCrosshair();
+        }
     }
 }
 exports.default = HUD;
@@ -53382,9 +53429,18 @@ class Projectile {
         var geometry = new three_1.SphereGeometry(0.3, 32, 32);
         geometry.applyMatrix(new three_1.Matrix4().makeScale(1, 0.1, 1));
         var material = new three_1.MeshBasicMaterial({ color: 0x00ffff });
+        this.origin = position.clone();
         this.object = new three_1.Mesh(geometry, material);
         this.object.position.copy(position);
         this.object.quaternion.copy(rotation);
+        let intersections = game.raycastTerrain(this.object.getWorldPosition(new three_1.Vector3()), this.object.getWorldDirection(new three_1.Vector3()).negate());
+        if (intersections.length > 0) {
+            this.maxDistance = intersections[0].distance;
+        }
+        else {
+            this.maxDistance = 1000;
+        }
+        console.log("max distance for projectile", this.maxDistance);
         this.particleSystem = new three_gpu_particle_system_1.ParticleSystem(game.scene, game.camera);
     }
     finish() {
@@ -53400,10 +53456,10 @@ class Projectile {
             this.particleSystem.draw();
             return false;
         }
-        if (this.object.position.length() > 1000) {
-            console.log("projectile expired");
-            this.finish();
-            return true;
+        let distanceTraveled = this.object.position.distanceTo(this.origin);
+        if (distanceTraveled > this.maxDistance) {
+            this.explode();
+            return false;
         }
         this.object.translateZ(-this.speed * delta);
         if (this.game.registerHit(this.object)) {
