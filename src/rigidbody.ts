@@ -29,12 +29,7 @@ export default class Rigidbody {
     let groundLevel = this.groundCheck();
     let groundDistance = this.object.position.y - groundLevel;
     this.onGround = groundDistance < 1;
-
-    if (this.object.position.y < groundLevel) {
-      this.object.position.y = groundLevel;
-      this.velocity.z += this.velocity.y;
-      this.velocity.y = 0;
-    }
+    this.object.position.y = Math.max(this.object.position.y, groundLevel);
 
     this.velocity.x -= this.velocity.x * this.dragX * delta;
     this.velocity.z -= this.velocity.z * this.dragY * delta;
