@@ -45,6 +45,7 @@ export default class Game {
 
   prevTime: number
   debug: boolean
+  scoreCounter: number
   constructor(window: Window, document: Document, debug: boolean) {
     this.window = window
     this.debug = debug
@@ -89,7 +90,7 @@ export default class Game {
 
     this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20
 
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 50; i++) {
       this.spawnEnemy("foo-"+i)
     }
     this.prevTime = performance.now();
@@ -97,17 +98,36 @@ export default class Game {
 
   spawnEnemy(name: string): void {
     let enemy = new Enemy(this, name);
-    enemy.object.position.x = Math.random() * this.terrainSize;
-    enemy.object.position.z = Math.random() * this.terrainSize;
+    enemy.object.position.x = Math.random() * 20;
+    enemy.object.position.z = Math.random() * 20;
     enemy.object.position.y = this.terrain.getHeight(enemy.object.position.x, enemy.object.position.z) + 20;
     this.enemies.push(enemy);
   }
 
-  // returns true if hit is registered.
+  // returns true if hit is registered with non-terrain.
   registerHit(object: Object3D): boolean {
+    let explode = false;
+    this.enemies.forEach((enemy) => {
+      let d = enemy.object.position.distanceTo(object.position)
+      // console.log("distance to enemy:", d)
+      if (d < 2) {
+        this.score("Body Hit!", 100);
+        enemy.die()
+        explode = true
+      }
+    });
+    return explode
+  }
+
+  score(message: string, score: number) {
+    this.hud.flash(message);
+    this.scoreCounter += score
+  }
+
+  registerHitRaycast(object: Object3D): boolean {
     let position = object.getWorldPosition(new Vector3())
     let direction = object.getWorldDirection(new Vector3()).negate()
-    let intersections = this.raycast(position, direction, [this.terrain.mesh]);
+    let intersections = this.raycast(position, direction, this.enemies.map((e) => e.object));
 
     if (intersections.length == 0) {
       return false
@@ -119,6 +139,11 @@ export default class Game {
   raycastAll(position: Vector3, direction: Vector3, debug?: boolean) {
     return this.raycast(position, direction, [ this.terrain.mesh], debug)
   }
+
+  raycastTerrain(position: Vector3, direction: Vector3, debug?: boolean) {
+    return this.raycast(position, direction, [ this.terrain.mesh], debug)
+  }
+
   raycast(position: Vector3, direction: Vector3, objects: Array<Mesh>, debug?: boolean) {
     let dir = direction.clone().normalize();
     this.raycaster.set(position, dir);
@@ -142,6 +167,7 @@ export default class Game {
 
     this.player.update(delta);
     this.enemies.forEach((enemy) => enemy.update(delta));
+    this.hud.update(delta);
     this.render()
   }
 

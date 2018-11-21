@@ -29,8 +29,9 @@ const lathePoints = [
 
 export default class Enemy {
   name: string
-  object: Object3D
+  object: Mesh
   rigidbody: Rigidbody
+  died: number
 
   constructor(game: Game, name: string) {
     this.name = name
@@ -43,7 +44,15 @@ export default class Enemy {
     this.rigidbody = new Rigidbody(game, this.object)
   }
 
+  die() {
+    this.died  = performance.now()
+    console.log("Died!")
+  }
+
   update(delta: number): void {
+    if (this.died != null) {
+      this.object.scale.multiplyScalar(delta)
+    }
     this.rigidbody.update(delta);
   }
 }
