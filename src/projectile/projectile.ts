@@ -20,10 +20,12 @@ import Game from '../game';
 
 export default class Projectile {
   object: Object3D
+  origin: Vector3
   speed: number
   game: Game
   particleSystem: ParticleSystem
   exploded: number
+  maxDistance: number
 
   constructor(game: Game, position: Vector3, rotation: Quaternion) {
     this.game = game;
@@ -32,10 +34,23 @@ export default class Projectile {
     var geometry = new SphereGeometry(0.3, 32, 32);
     geometry.applyMatrix(new Matrix4().makeScale(1, 0.1, 1));
     var material = new MeshBasicMaterial({color: 0x00ffff});
+
+    this.origin = position.clone();
     this.object = new Mesh( geometry, material );
     this.object.position.copy(position);
     this.object.quaternion.copy(rotation);
 
+    let intersections = game.raycastTerrain(
+      this.object.getWorldPosition(new Vector3()),
+      this.object.getWorldDirection(new Vector3()).negate(),
+    );
+
+    if (intersections.length > 0) {
+      this.maxDistance = intersections[0].distance
+    } else {
+      this.maxDistance = 1000
+    }
+    console.log("max distance for projectile", this.maxDistance)
     this.particleSystem = new ParticleSystem(game.scene, game.camera)
   }
 
@@ -53,10 +68,10 @@ export default class Projectile {
       this.particleSystem.draw();
       return false
     }
-    if (this.object.position.length() > 1000) {
-      console.log("projectile expired")
-      this.finish()
-      return true
+    let distanceTraveled = this.object.position.distanceTo(this.origin);
+    if (distanceTraveled > this.maxDistance) {
+      this.explode()
+      return false
     }
     this.object.translateZ(-this.speed * delta);
     if (this.game.registerHit(this.object)) {
