@@ -29,12 +29,14 @@ const lathePoints = [
 
 export default class Enemy {
   name: string
+  game: Game
   object: Mesh
   rigidbody: Rigidbody
   died: number
 
   constructor(game: Game, name: string) {
     this.name = name
+    this.game = game
     var geometry = new LatheGeometry(lathePoints);
     var material = new MeshPhysicalMaterial({ color: 0xff0000 });
     material.side = DoubleSide;
@@ -46,6 +48,7 @@ export default class Enemy {
 
   die() {
     this.died  = performance.now()
+    this.game.audio.die(this.object.position)
     console.log("Died!")
   }
 

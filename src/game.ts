@@ -26,6 +26,7 @@ import Terrain from './terrain/terrain';
 import Controls from './controls';
 import HUD from './hud';
 import Enemy from './enemy';
+import Audio from './audio';
 
 const vectorDown = new Vector3(0, -1, 0);
 
@@ -39,6 +40,7 @@ export default class Game {
   renderer: WebGLRenderer
   camera: PerspectiveCamera
   hud: HUD
+  audio: Audio
   terrainSize: number
 
   raycaster: Raycaster
@@ -70,6 +72,7 @@ export default class Game {
     this.scene.add(light2)
 
     this.hud = new HUD(window, document);
+    this.audio = new Audio(window);
 
     this.raycaster = new Raycaster();
 

@@ -82,6 +82,7 @@ export default class Projectile {
 
   explode(): void {
     this.exploded = performance.now();
+    this.game.audio.explosion(this.object.position);
     this.game.scene.remove(this.object);
     this.game.scene.add(this.smokeEmitter(this.object.position, this.object.quaternion));
     this.game.scene.add(this.blastEmitter(this.object.position, this.object.quaternion));

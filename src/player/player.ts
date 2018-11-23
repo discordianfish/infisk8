@@ -98,12 +98,14 @@ export default class Player {
     var projectile = new Projectile(this.game, this.object.position, this.game.camera.getWorldQuaternion(new Quaternion()))
     this.game.scene.add(projectile.object)
     this.projectiles.push(projectile)
+    this.game.audio.fire()
   }
 
   update(delta: number) {
     // Apply controls
     let direction = this.controls.input();
     let controlVelocity = new Vector3();
+    this.game.audio.boost(this.controls.boost, this.object.position);
     if (this.rigidbody.onGround || this.controls.boost) {
       controlVelocity.z -= direction.z * this.speed * delta;
       controlVelocity.x -= direction.x * this.speed * delta;
