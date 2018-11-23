@@ -52860,6 +52860,128 @@ function LensFlare() {
 
 /***/ }),
 
+/***/ "./src/audio.ts":
+/*!**********************!*\
+  !*** ./src/audio.ts ***!
+  \**********************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+class Playable {
+    constructor(context, sourceNode) {
+        this.context = context;
+        this.sourceNode = sourceNode;
+        this.gain = context.createGain();
+        this.sourceNode.connect(this.gain);
+        this.gain.connect(this.context.destination);
+    }
+    tune(start, stop) { }
+    play(start, stop) {
+        this.tune(start, stop);
+        this.sourceNode.start(start);
+        this.sourceNode.stop(stop);
+    }
+}
+class Boom extends Playable {
+    constructor(context) {
+        let osc = context.createOscillator();
+        super(context, osc);
+        this.freq = 250;
+        this.osc = osc;
+    }
+    tune(start, stop) {
+        this.osc.frequency.setValueAtTime(this.freq, start);
+        this.gain.gain.setValueAtTime(1, start);
+        this.osc.frequency.exponentialRampToValueAtTime(0.01, stop);
+        this.gain.gain.exponentialRampToValueAtTime(0.01, stop);
+    }
+}
+class Noise {
+    constructor(context) {
+        this.context = context;
+        let source = context.createBufferSource();
+        source.buffer = this.genBuffer(2);
+        source.loop = true;
+        let filter = context.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 500;
+        source.connect(filter);
+        let gain = context.createGain();
+        filter.connect(gain);
+        gain.connect(context.destination);
+        this.gain = gain;
+        this.source = source;
+    }
+    genBuffer(duration) {
+        const bufferSize = duration * this.context.sampleRate;
+        let buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
+        let data = buffer.getChannelData(0);
+        let last = 0.0;
+        for (var i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    }
+}
+class Audio {
+    constructor(window) {
+        this.window = window;
+        this.context = new AudioContext;
+        this.boostAudio = new Noise(this.context);
+        this.boostAudio.source.start(0);
+        this.boostAudio.gain.gain.value = 0;
+    }
+    fire() {
+        let now = this.context.currentTime;
+        let kl = new Boom(this.context);
+        let kh = new Boom(this.context);
+        kh.freq = 550;
+        kl.play(now, now + 1);
+        kh.play(now + 0.1, now + 1.1);
+    }
+    explosion(position) {
+        let start = this.context.currentTime;
+        let k1 = new Boom(this.context);
+        k1.freq = 150;
+        k1.play(start, start + 2);
+        start += 0.1;
+        let k2 = new Boom(this.context);
+        k2.freq = 100;
+        k2.play(start, start + 3);
+        start += 0.1;
+        let k3 = new Boom(this.context);
+        k3.freq = 50;
+        k3.play(start, start + 4);
+    }
+    die(position) {
+        let start = this.context.currentTime;
+        let k = new Boom(this.context);
+        k.freq = 660;
+        k.play(start, start + 1);
+    }
+    boost(boost, position) {
+        if (boost) {
+            this.boostAudio.gain.gain.value = 1;
+        }
+        else {
+            this.boostAudio.gain.gain.value = 0;
+        }
+    }
+    ground(position) {
+        let start = this.context.currentTime;
+        let b = new Boom(this.context);
+        b.freq = 2000;
+        b.play(start, start + 0.2);
+    }
+}
+exports.default = Audio;
+
+
+/***/ }),
+
 /***/ "./src/controls.ts":
 /*!*************************!*\
   !*** ./src/controls.ts ***!
@@ -53005,6 +53127,7 @@ const lathePoints = [
 class Enemy {
     constructor(game, name) {
         this.name = name;
+        this.game = game;
         var geometry = new three_1.LatheGeometry(lathePoints);
         var material = new three_1.MeshPhysicalMaterial({ color: 0xff0000 });
         material.side = three_1.DoubleSide;
@@ -53015,6 +53138,7 @@ class Enemy {
     }
     die() {
         this.died = performance.now();
+        this.game.audio.die(this.object.position);
         console.log("Died!");
     }
     update(delta) {
@@ -53046,6 +53170,7 @@ const terrain_1 = __webpack_require__(/*! ./terrain/terrain */ "./src/terrain/te
 const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
 const hud_1 = __webpack_require__(/*! ./hud */ "./src/hud.ts");
 const enemy_1 = __webpack_require__(/*! ./enemy */ "./src/enemy.ts");
+const audio_1 = __webpack_require__(/*! ./audio */ "./src/audio.ts");
 const vectorDown = new three_1.Vector3(0, -1, 0);
 class Game {
     constructor(window, document, debug) {
@@ -53067,6 +53192,7 @@ class Game {
         light2.position.set(-100, 100, -100);
         this.scene.add(light2);
         this.hud = new hud_1.default(window, document);
+        this.audio = new audio_1.default(window);
         this.raycaster = new three_1.Raycaster();
         this.terrainSize = 1000;
         this.terrain = new terrain_1.default(this.terrainSize, this.terrainSize, this.terrainSize / 5, this.terrainSize / 5);
@@ -53189,6 +53315,7 @@ class HUD {
         canvas.height = height;
         this.canvas = canvas;
         this.texture = new three_1.Texture(canvas);
+        this.message = '';
         this.flashTimeout = 1000;
         this.cc = canvas.getContext('2d');
         this.cc.textAlign = 'center';
@@ -53208,17 +53335,23 @@ class HUD {
         this.texture.needsUpdate = true;
     }
     flash(message) {
-        this.cc.font = 'Normal 60px Sans-Serif';
-        this.cc.fillStyle = 'rgb(255, 0, 255)';
-        this.cc.fillText(message, this.canvas.width / 2, this.canvas.height / 4);
-        this.texture.needsUpdate = true;
+        this.message = message;
         this.flashed = performance.now();
+    }
+    clear() {
+        this.cc.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
     update(delta) {
         if (performance.now() - this.flashed > this.flashTimeout) {
-            this.cc.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.drawCrosshair();
+            this.message = "";
         }
+        this.clear();
+        this.drawCrosshair();
+        this.cc.font = 'Normal 60px Sans-Serif';
+        this.cc.fillStyle = 'rgb(255, 0, 255)';
+        this.cc.fillText(this.message, this.canvas.width / 2, this.canvas.height / 4);
+        this.cc.fillText("Boost: " + this.boost.toFixed(0) + "%", this.canvas.width / 10, this.canvas.height / 10);
+        this.texture.needsUpdate = true;
     }
 }
 exports.default = HUD;
@@ -53317,6 +53450,9 @@ class Player {
         this.controls = controls;
         this.cooldown = 1000;
         this.speed = 20;
+        this.boost = 100;
+        this.boostUsePerSecond = 50;
+        this.boostGainPerSecond = 10;
         this.lastFired = performance.now();
         this.plElement = document.body;
         this.isLocked = false;
@@ -53372,18 +53508,31 @@ class Player {
         var projectile = new projectile_1.default(this.game, this.object.position, this.game.camera.getWorldQuaternion(new three_1.Quaternion()));
         this.game.scene.add(projectile.object);
         this.projectiles.push(projectile);
+        this.game.audio.fire();
     }
     update(delta) {
         // Apply controls
         let direction = this.controls.input();
         let controlVelocity = new three_1.Vector3();
-        if (this.rigidbody.onGround || this.controls.boost) {
+        let boost = false;
+        if (this.controls.boost && this.boost > 0) {
+            this.boost -= this.boostUsePerSecond * delta;
+            boost = true;
+        }
+        else {
+            if (this.boost < 100) {
+                this.boost += this.boostGainPerSecond * delta;
+            }
+        }
+        this.game.hud.boost = this.boost;
+        this.game.audio.boost(boost, this.object.position);
+        if (this.rigidbody.onGround || boost) {
             controlVelocity.z -= direction.z * this.speed * delta;
             controlVelocity.x -= direction.x * this.speed * delta;
             controlVelocity.y += direction.y * this.speed;
         }
-        controlVelocity.y += Number(this.controls.boost) * this.speed * delta;
-        controlVelocity.z -= Number(this.controls.boost) * this.speed * delta;
+        controlVelocity.y += Number(boost) * this.speed * delta;
+        controlVelocity.z -= Number(boost) * this.speed * delta;
         controlVelocity.applyQuaternion(this.object.quaternion);
         this.rigidbody.velocity.add(controlVelocity);
         // Other controls
@@ -53469,6 +53618,7 @@ class Projectile {
     }
     explode() {
         this.exploded = performance.now();
+        this.game.audio.explosion(this.object.position);
         this.game.scene.remove(this.object);
         this.game.scene.add(this.smokeEmitter(this.object.position, this.object.quaternion));
         this.game.scene.add(this.blastEmitter(this.object.position, this.object.quaternion));
