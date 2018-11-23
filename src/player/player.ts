@@ -23,6 +23,9 @@ export default class Player {
   scene: Scene
   projectiles: Array<Projectile>
   speed: number
+  boost: number
+  boostUsePerSecond: number
+  boostGainPerSecond: number
 
   cooldown: number
   lastFired: number
@@ -33,6 +36,9 @@ export default class Player {
 
     this.cooldown = 1000;
     this.speed = 20;
+    this.boost = 100;
+    this.boostUsePerSecond = 50;
+    this.boostGainPerSecond = 10;
     this.lastFired = performance.now();
 
 	  this.plElement = document.body;
@@ -105,14 +111,24 @@ export default class Player {
     // Apply controls
     let direction = this.controls.input();
     let controlVelocity = new Vector3();
-    this.game.audio.boost(this.controls.boost, this.object.position);
-    if (this.rigidbody.onGround || this.controls.boost) {
+    let boost = false;
+    if (this.controls.boost && this.boost > 0) {
+      this.boost -= this.boostUsePerSecond * delta
+      boost = true
+    } else {
+      if (this.boost < 100) {
+        this.boost += this.boostGainPerSecond * delta
+      }
+    }
+    this.game.hud.boost = this.boost;
+    this.game.audio.boost(boost, this.object.position);
+    if (this.rigidbody.onGround || boost) {
       controlVelocity.z -= direction.z * this.speed * delta;
       controlVelocity.x -= direction.x * this.speed * delta;
       controlVelocity.y += direction.y * this.speed;
     }
-    controlVelocity.y += Number(this.controls.boost) * this.speed * delta;
-    controlVelocity.z -= Number(this.controls.boost) * this.speed * delta;
+    controlVelocity.y += Number(boost) * this.speed * delta;
+    controlVelocity.z -= Number(boost) * this.speed * delta;
     controlVelocity.applyQuaternion(this.object.quaternion);
     this.rigidbody.velocity.add(controlVelocity);
 

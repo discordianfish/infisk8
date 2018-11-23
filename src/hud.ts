@@ -17,6 +17,10 @@ export default class HUD {
   flashed: number
   flashTimeout: number
 
+  // Game stats
+  message: string
+  boost: number
+
   constructor(window: Window, document: Document) {
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -26,6 +30,7 @@ export default class HUD {
     canvas.height = height;
     this.canvas = canvas;
     this.texture = new Texture(canvas)
+    this.message = ''
 
     this.flashTimeout = 1000;
 
@@ -53,17 +58,26 @@ export default class HUD {
   }
 
   flash(message: string) {
-    this.cc.font = 'Normal 60px Sans-Serif';
-    this.cc.fillStyle = 'rgb(255, 0, 255)';
-    this.cc.fillText(message, this.canvas.width / 2, this.canvas.height / 4)
-    this.texture.needsUpdate = true;
+    this.message = message;
     this.flashed = performance.now();
+  }
+
+  clear() {
+      this.cc.clearRect(0, 0, this.canvas.width, this.canvas.height)
   }
 
   update(delta: number) {
     if (performance.now() - this.flashed > this.flashTimeout) {
-      this.cc.clearRect(0, 0, this.canvas.width, this.canvas.height)
-      this.drawCrosshair()
+      this.message = ""
     }
+
+    this.clear()
+    this.drawCrosshair()
+    this.cc.font = 'Normal 60px Sans-Serif';
+    this.cc.fillStyle = 'rgb(255, 0, 255)';
+    this.cc.fillText(this.message, this.canvas.width / 2, this.canvas.height / 4)
+    this.cc.fillText("Boost: " + this.boost.toFixed(0) + "%", this.canvas.width / 10, this.canvas.height / 10);
+    this.texture.needsUpdate = true;
+
   }
 }
