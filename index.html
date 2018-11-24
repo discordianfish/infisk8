@@ -7,12 +7,29 @@
 </head>
 
 <body style="color: #ff00ff; margin: 0; padding: 0">
-		<div id="blocker" style="">
-			<div id="instructions" style="text-align: center; position: absolute; top: 50%; left: 50%; width: 20em; height: 5em; margin-left: -10em; margin-right: -10em">
-				<span style="font-size:40px">Click to play</span>
-				<br />
-				(MOUSE = Look, LMB = Jetpack)
-			</div>
+		<div id="menu" style="position: absolute; top: 10%; left: 50%;   width: 20em; height: 5em; margin-left: -10em; margin-right: -10em">
+      <h2>Initiate</h2>
+      <button class="initiate">Initiate</button><br />
+      Offer (send to players to join):
+      <textarea readonly class="offer-output"></textarea><br />
+      Accept following answers:
+
+      <textarea class="answer-input"></textarea><br />
+      <button class="accept-answer">Accept</button>
+      <button class="start">Start</button></br />
+
+
+
+      <hr />
+      <h2>Join</h2>
+      <textarea class="offer" placeholder="Enter offer here"></textarea><br />
+      <button class="join">Join</button>
+      Send this to initiator to accept:
+      <textarea readonly class="answer-output"></textarea><br />
+      <br />
+      <hr />
+      <button class="close">Close Menu</button><br />
+		  (MOUSE = Look, RMB = Fire, LMB = Jetpack)
 		</div>
 <script type="text/javascript" src="index.js"></script></body>
 
