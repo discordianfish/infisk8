@@ -15,8 +15,8 @@ export default class Terrain {
   noiseGen: OpenSimplexNoise
   mesh: Mesh
 
-  constructor(width: number, height: number, widthSegments: number, heightSegments: number) {
-    this.noiseGen = new OpenSimplexNoise(Date.now());
+  constructor(seed: number, width: number, height: number, widthSegments: number, heightSegments: number) {
+    this.noiseGen = new OpenSimplexNoise(seed);
     this.detailFactor = 0.02;
     this.heightFactor = 50;
 

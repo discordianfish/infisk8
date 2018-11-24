@@ -21,12 +21,14 @@ import {
 } from 'three';
 
 import Player from './player/player';
-import {lockPointer} from './lock_pointer';
+import Lobby from './lobby';
 import Terrain from './terrain/terrain';
 import Controls from './controls';
 import HUD from './hud';
 import Enemy from './enemy';
 import Audio from './audio';
+import Network from './network';
+import Model from './player/model';
 
 const vectorDown = new Vector3(0, -1, 0);
 
@@ -42,15 +44,20 @@ export default class Game {
   hud: HUD
   audio: Audio
   terrainSize: number
+  net: Network
+  pplayer: Object3D
+  started: true
 
   raycaster: Raycaster
 
   prevTime: number
   debug: boolean
   scoreCounter: number
-  constructor(window: Window, document: Document, debug: boolean) {
+  constructor(window: Window, document: Document) {
     this.window = window
-    this.debug = debug
+    let url = new URL(window.location.href);
+    this.debug = url.searchParams.get('debug') == '1';
+
     this.enemies = []
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000)
@@ -77,26 +84,29 @@ export default class Game {
     this.raycaster = new Raycaster();
 
     this.terrainSize = 1000;
-    this.terrain = new Terrain(this.terrainSize, this.terrainSize, this.terrainSize/5, this.terrainSize/5)
+    let seed = parseFloat(url.searchParams.get('seed')) || 23;
+    this.terrain = new Terrain(seed, this.terrainSize, this.terrainSize, this.terrainSize/5, this.terrainSize/5)
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
     this.render()
 
-    let controls = new Controls(document, document.getElementById('blocker'), document.getElementById('instructions'))
+    let lobby = new Lobby(document, document.getElementById('menu'), this);
+    let controls = new Controls(document);
     this.player = new Player(document, this, controls);
+    this.addEventListeners();
+    this.player.addEventListeners();
+  }
+
+  start() {
+    this.pplayer = Model();
+    this.scene.add(this.pplayer);
     this.player.object.position.y = 1000;
     this.scene.add(this.player.object)
-    this.player.addEventListeners();
-    this.addEventListeners();
-
-    lockPointer(document.getElementById('blocker'), document.getElementById('instructions'), this.player)
 
     this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20
 
-    for (let i = 0; i <= 50; i++) {
-      this.spawnEnemy("foo-"+i)
-    }
     this.prevTime = performance.now();
+    this.started = true;
   }
 
   spawnEnemy(name: string): void {
@@ -112,7 +122,6 @@ export default class Game {
     let explode = false;
     this.enemies.forEach((enemy) => {
       let d = enemy.object.position.distanceTo(object.position)
-      // console.log("distance to enemy:", d)
       if (d < 2) {
         this.score("Body Hit!", 100);
         enemy.die()
@@ -160,9 +169,11 @@ export default class Game {
 
   update(): void {
     requestAnimationFrame(() => this.update());
-    if (!this.player.isLocked) {
+    if (!this.started) {
       return
     }
+
+    this.net.update(this.player.object.position)
 
     var time = performance.now();
     var delta = ( time - this.prevTime ) / 1000;
@@ -172,6 +183,15 @@ export default class Game {
     this.enemies.forEach((enemy) => enemy.update(delta));
     this.hud.update(delta);
     this.render()
+  }
+
+  handleUpdate(peer, data): void {
+    let buf = new Buffer(data); // 3 * (64/8));
+
+    this.pplayer.position.set(
+      buf.readFloatBE(0),
+      buf.readFloatBE(64/8),
+      buf.readFloatBE((64/8) * 2))
   }
 
   render(): void {

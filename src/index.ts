@@ -11,7 +11,5 @@ declare global {
     }
 }
 
-const debug = new URL(window.location.href).searchParams.get('debug') == '1';
-
-let game = new Game(window, document, debug)
+let game = new Game(window, document)
 game.update()

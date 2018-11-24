@@ -10,7 +10,7 @@ export default class Controls {
   jump: boolean
   fire: boolean
 
-  constructor(document: Document, blocker: HTMLElement, instructions: HTMLElement) {
+  constructor(document: Document) {
     this.moveForward = false;
     this.moveLeft = false;
     this.moveRight = false;
