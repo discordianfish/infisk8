@@ -45,7 +45,7 @@ export default class Lobby {
       console.log(pools);
       pools.forEach((p) => {
         let button = this.document.createElement('button')
-        button.appendChild(this.document.createTextNode(p.name));
+        button.appendChild(this.document.createTextNode("Join " + p.name));
         button.onclick = () => this.join(p);
 
         let li = this.document.createElement('li')

@@ -16,9 +16,10 @@ export default class Network {
         urls: "stun:stun.l.google.com:19302"
       }]
     })
-    this.apiURL = "http://localhost:9000";
+    this.apiURL = "https://infisk8.5pi.de";
     let dc = this.pc.createDataChannel('default', {
-      maxPacketLifeTime: (1/60) * 1000,
+      ordered: false,
+      maxRetransmits: 0,
     });
     dc.onclose = () => console.log('dc has closed')
     dc.onopen = () => this.onopen();
