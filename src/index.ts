@@ -9,7 +9,11 @@ declare global {
     interface HTMLElement {
         requestPointerLock?: any;
     }
+    interface Window {
+      game: Game
+    }
 }
 
 let game = new Game(window, document)
+window.game = game;
 game.update()

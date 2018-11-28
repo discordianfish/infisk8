@@ -1,9 +1,11 @@
 import Game from './game';
 import Network from './network';
+import nameGenerator from './utils';
 
 export default class Lobby {
   document: Document
   menu: HTMLElement
+  nameField: HTMLInputElement
   game: Game
   net: Network
 
@@ -21,6 +23,11 @@ export default class Lobby {
 
     document.addEventListener('pointerlockchange', (e) => this.pointerlockchange(e), false);
     document.addEventListener('pointerlockerror', (e) => this.pointerlockerror(e), false);
+
+    this.nameField = <HTMLInputElement>this.menu.getElementsByClassName('name')[0];
+    if (this.nameField.value == '') {
+      this.nameField.value = nameGenerator()
+    }
 
     let sle = this.menu.getElementsByClassName('session-list')[0];
     this.generateServerList(sle)
@@ -49,7 +56,8 @@ export default class Lobby {
   }
 
   join(pool) {
-    console.log("join", pool);
+    this.game.name = this.nameField.value;
+    this.game.hud.status = this.game.name + "@" + pool.name;
     this.net.join(pool)
   }
 

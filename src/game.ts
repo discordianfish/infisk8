@@ -35,7 +35,7 @@ const vectorDown = new Vector3(0, -1, 0);
 export default class Game {
   window: Window
   player: Player
-  enemies: Array<Enemy>
+  name: string
   controls: Controls
   terrain: Terrain
   scene: Scene
@@ -45,7 +45,7 @@ export default class Game {
   audio: Audio
   terrainSize: number
   net: Network
-  pplayer: Object3D
+  players: Object
   started: true
 
   raycaster: Raycaster
@@ -57,8 +57,9 @@ export default class Game {
     this.window = window
     let url = new URL(window.location.href);
     this.debug = url.searchParams.get('debug') == '1';
+    this.name = url.searchParams.get('name');
+    this.players = {};
 
-    this.enemies = []
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000)
     let renderer = new WebGLRenderer()
@@ -98,8 +99,6 @@ export default class Game {
   }
 
   start() {
-    this.pplayer = Model();
-    this.scene.add(this.pplayer);
     this.player.object.position.y = 1000;
     this.scene.add(this.player.object)
 
@@ -109,22 +108,15 @@ export default class Game {
     this.started = true;
   }
 
-  spawnEnemy(name: string): void {
-    let enemy = new Enemy(this, name);
-    enemy.object.position.x = Math.random() * 20;
-    enemy.object.position.z = Math.random() * 20;
-    enemy.object.position.y = this.terrain.getHeight(enemy.object.position.x, enemy.object.position.z) + 20;
-    this.enemies.push(enemy);
-  }
-
   // returns true if hit is registered with non-terrain.
   registerHit(object: Object3D): boolean {
     let explode = false;
-    this.enemies.forEach((enemy) => {
-      let d = enemy.object.position.distanceTo(object.position)
+    Object.keys(this.players).forEach((n) => {
+      let player = this.players[n];
+      let d = player.position.distanceTo(object.position)
       if (d < 2) {
-        this.score("Body Hit!", 100);
-        enemy.die()
+        this.score("Body Hit @ " + n, 100);
+        // player.die()
         explode = true
       }
     });
@@ -139,7 +131,7 @@ export default class Game {
   registerHitRaycast(object: Object3D): boolean {
     let position = object.getWorldPosition(new Vector3())
     let direction = object.getWorldDirection(new Vector3()).negate()
-    let intersections = this.raycast(position, direction, this.enemies.map((e) => e.object));
+    let intersections = this.raycast(position, direction, Object.keys(this.players).map((n) => this.players[n]));
 
     if (intersections.length == 0) {
       return false
@@ -173,25 +165,46 @@ export default class Game {
       return
     }
 
-    this.net.update(this.player.object.position)
+    this.net.updateServer(this.serialize())
 
     var time = performance.now();
     var delta = ( time - this.prevTime ) / 1000;
     this.prevTime = time;
 
     this.player.update(delta);
-    this.enemies.forEach((enemy) => enemy.update(delta));
+    // this.enemies.forEach((enemy) => enemy.update(delta));
     this.hud.update(delta);
     this.render()
   }
 
-  handleUpdate(data): void {
-    let buf = new Buffer(data); // 3 * (64/8));
+  onServerMessage(data): void {
+    // console.log("received:", data);
+    this.deserialize(data)
+  }
 
-    this.pplayer.position.set(
-      buf.readFloatBE(0),
-      buf.readFloatBE(64/8),
-      buf.readFloatBE((64/8) * 2))
+  serialize() {
+    let p = this.player.object.position;
+    return JSON.stringify({
+      name: this.name,
+      position: [ p.x, p.y, p.z ],
+    })
+  }
+
+  deserialize(data: any) {
+    let s = JSON.parse(data);
+    if (!this.players.hasOwnProperty(s.name)) {
+      this.players[s.name] = Model()
+      this.scene.add(this.players[s.name]);
+      console.log("Spawning model for " + s.name);
+    }
+    this.hud.debug = [];
+    Object.keys(this.players).sort().forEach((p) => {
+      let s = this.players[p];
+      this.hud.debug.push(p + '(' + [s.position.x.toFixed(1), s.position.y.toFixed(1), s.position.z.toFixed(1) ].join(',') + ')');
+    });
+
+    this.players[s.name].position.set(s.position[0], s.position[1], s.position[2])
+    // console.log(s.name + '=(' + s.position.join(',') + ')');
   }
 
   render(): void {
@@ -205,6 +218,7 @@ export default class Game {
   }
 
   onWindowResize(){
+    this.hud.onWindowResize();
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize( window.innerWidth, window.innerHeight );

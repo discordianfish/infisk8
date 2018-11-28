@@ -17,10 +17,12 @@ export default class Network {
       }]
     })
     this.apiURL = "http://localhost:9000";
-    let dc = this.pc.createDataChannel('default');
+    let dc = this.pc.createDataChannel('default', {
+      maxPacketLifeTime: (1/60) * 1000,
+    });
     dc.onclose = () => console.log('dc has closed')
     dc.onopen = () => this.onopen();
-    dc.onmessage = e => this.lobby.game.handleUpdate(e.data);
+    dc.onmessage = e => this.lobby.game.onServerMessage(e.data);
     this.dc = dc;
 
     this.pc.oniceconnectionstatechange = () => console.log('state change', this.pc.iceConnectionState)
@@ -50,12 +52,9 @@ export default class Network {
   }
 
   // Called in main loop to send position to peer
-  update(position: Vector3) {
-    let buf = new Buffer(3 * (64/8));
-    buf.writeFloatBE(position.x, 0);
-    buf.writeFloatBE(position.y, (64/8));
-    buf.writeFloatBE(position.z, (64/8) * 2);
-    this.dc.send(buf);
+  updateServer(data) {
+    // console.log("sending:", data)
+    this.dc.send(data);
   }
 
   newSession(sdp, pool) {

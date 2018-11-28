@@ -7,7 +7,7 @@
     <style>
       #menu-wrapper {
         position: fixed;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 0, 0, 0.8);
         width: 100%;
         height: 100%;
       }
@@ -26,8 +26,12 @@
 <body style="color: #ff00ff; margin: 0; padding: 0">
   <div id="menu-wrapper">
     <div id="menu">
-      <h2>Session List</h2>
-      <ul class="session-list"></ul>
+      <h2>Join Game</h2>
+      <p>
+      <label for="name" style="display: block">Name:</label>
+      <input type="text" name="name" class="name" placeholder="Enter your name" required>
+      </p>
+      <ul class="session-list" style="list-style-type: none; padding-left: 0"></ul>
       <br />
       <br />
       <button class="close">Close Menu</button><br />
