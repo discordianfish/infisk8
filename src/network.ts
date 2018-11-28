@@ -1,4 +1,3 @@
-import * as SimplePeer from 'simple-peer';
 import Lobby from './lobby';
 import {
   Vector3,
@@ -6,39 +5,48 @@ import {
 
 export default class Network {
   lobby: Lobby
-  peer: any // FIXME: Why can't I use SimplePeer here, even though I have @types/simple-peer?
-  initiator: boolean
-  buffer: DataView
+  pc: RTCPeerConnection
+  dc: RTCDataChannel
+  apiURL: string
 
-  constructor(lobby: Lobby, initiator: boolean) {
+  constructor(lobby: Lobby) {
     this.lobby = lobby;
-    this.initiator = initiator;
+    this.pc = new RTCPeerConnection({
+      iceServers: [{
+        urls: "stun:stun.l.google.com:19302"
+      }]
+    })
+    this.apiURL = "http://localhost:9000";
+    let dc = this.pc.createDataChannel('default');
+    dc.onclose = () => console.log('dc has closed')
+    dc.onopen = () => this.onopen();
+    dc.onmessage = e => this.lobby.game.handleUpdate(e.data);
+    this.dc = dc;
 
-    this.peer = new SimplePeer({initiator: initiator, trickle: false});
-
-    this.peer.on('error', (err) => { console.log('error', err) });
-
-    this.peer.on('signal', (data) => {
-      if (initiator) {
-        this.lobby.showOffer(data)
-      } else {
-        this.lobby.showAnswer(data)
+    this.pc.oniceconnectionstatechange = () => console.log('state change', this.pc.iceConnectionState)
+    this.pc.onicecandidate = event => {
+      if (event.candidate === null) {
+        console.log("Got localDescription", this.pc.localDescription)
       }
-    })
-    this.peer.on('connect', () => {
-      this.lobby.game.net = this;
-      this.lobby.game.start();
-    })
-    this.peer.on('data', (data) => {
-      this.lobby.game.handleUpdate(this.peer, data);
-    });
-
-    let buffer = new ArrayBuffer(16);
-    this.buffer = new DataView(buffer);
+    }
+    this.pc.onnegotiationneeded = e =>
+      this.pc.createOffer().then(d => this.pc.setLocalDescription(d));
   }
 
-  accept(offer) {
-    this.peer.signal(offer)
+  onopen(): void {
+    console.log('dc has opened');
+    this.lobby.game.net = this;
+    this.lobby.game.start();
+  }
+
+  join(pool) {
+    this.newSession(this.pc.localDescription, pool)
+    .then((sdp) => {
+      this.pc.setRemoteDescription(new RTCSessionDescription({
+        type: 'answer',
+        sdp: sdp,
+      }))
+    });
   }
 
   // Called in main loop to send position to peer
@@ -47,6 +55,32 @@ export default class Network {
     buf.writeFloatBE(position.x, 0);
     buf.writeFloatBE(position.y, (64/8));
     buf.writeFloatBE(position.z, (64/8) * 2);
-    this.peer.send(buf);
+    this.dc.send(buf);
+  }
+
+  newSession(sdp, pool) {
+    return this.fetch('pool/' + pool.name + '/join', {
+      method: "POST",
+      body: btoa(sdp.sdp),
+    })
+    .then((json) => {
+      return json.sdp
+    });
+  }
+
+  pools() {
+    return this.fetch('pools').
+      then((json) => { return(json["pools"] ) });
+  }
+
+  fetch(path: string, opts?: Object) {
+    let url = this.apiURL + '/' + path;
+    return fetch(url, opts)
+    .then((resp) => {
+      if (!resp.ok) {
+        throw new Error("Couldn't request " + url)
+      }
+      return resp.json();
+    });
   }
 }

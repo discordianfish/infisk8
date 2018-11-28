@@ -90,7 +90,7 @@ export default class Game {
     this.scene.add(this.terrain.mesh)
     this.render()
 
-    let lobby = new Lobby(document, document.getElementById('menu'), this);
+    let lobby = new Lobby(document, document.getElementById('menu-wrapper'), this);
     let controls = new Controls(document);
     this.player = new Player(document, this, controls);
     this.addEventListeners();
@@ -185,7 +185,7 @@ export default class Game {
     this.render()
   }
 
-  handleUpdate(peer, data): void {
+  handleUpdate(data): void {
     let buf = new Buffer(data); // 3 * (64/8));
 
     this.pplayer.position.set(

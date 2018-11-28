@@ -4,33 +4,36 @@
 <head>
     <meta charset="utf-8">
     <title>Infisk8</title>
+    <style>
+      #menu-wrapper {
+        position: fixed;
+        background-color: rgba(0, 0, 0, 0.5);
+        width: 100%;
+        height: 100%;
+      }
+      #menu {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+
+        width: 30em;
+        height: 30em;
+        margin: -15em 0 0 -15em;
+      }
+    </style>
 </head>
 
 <body style="color: #ff00ff; margin: 0; padding: 0">
-		<div id="menu" style="position: absolute; top: 10%; left: 50%;   width: 20em; height: 5em; margin-left: -10em; margin-right: -10em">
-      <h2>Initiate</h2>
-      <button class="initiate">Initiate</button><br />
-      Offer (send to players to join):
-      <textarea readonly class="offer-output"></textarea><br />
-      Accept following answers:
-
-      <textarea class="answer-input"></textarea><br />
-      <button class="accept-answer">Accept</button>
-      <button class="start">Start</button></br />
-
-
-
-      <hr />
-      <h2>Join</h2>
-      <textarea class="offer" placeholder="Enter offer here"></textarea><br />
-      <button class="join">Join</button>
-      Send this to initiator to accept:
-      <textarea readonly class="answer-output"></textarea><br />
+  <div id="menu-wrapper">
+    <div id="menu">
+      <h2>Session List</h2>
+      <ul class="session-list"></ul>
       <br />
-      <hr />
+      <br />
       <button class="close">Close Menu</button><br />
-		  (MOUSE = Look, RMB = Fire, LMB = Jetpack)
-		</div>
+	    (MOUSE = Look, RMB = Fire, LMB = Jetpack)
+		  </div>
+    </div>
 </body>
 
 </html>
