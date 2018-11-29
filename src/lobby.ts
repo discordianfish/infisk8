@@ -56,8 +56,8 @@ export default class Lobby {
   }
 
   join(pool) {
-    this.game.name = this.nameField.value;
-    this.game.hud.status = this.game.name + "@" + pool.name;
+    this.game.player.name = this.nameField.value;
+    this.game.hud.status = this.game.player.name + "@" + pool.name;
     this.net.join(pool)
   }
 

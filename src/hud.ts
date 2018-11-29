@@ -12,6 +12,36 @@ function nextPow2(n: number): number {
   return Math.pow(2, Math.ceil(Math.log(n)/Math.log(2)));
 }
 
+class Feed {
+  buffer: Array<string>
+  size: number
+  gridX: number
+  gridY: number
+
+  constructor(size: number, gridX: number, gridY: number) {
+    this.size = size;
+    this.gridX = gridX;
+    this.gridY = gridY;
+    this.buffer = [];
+  }
+
+  add(line: string) {
+    console.log("adding this to buffeR", line);
+    this.buffer.push(line)
+    if (this.buffer.length > this.size) {
+      this.buffer.shift();
+    }
+  }
+
+  render(canvas: CanvasRenderingContext2D, x: number, y: number) {
+    let i = 0;
+    this.buffer.forEach((l) => {
+      canvas.fillText(l, x * this.gridX, (y * this.gridY) + (this.gridY * i))
+      i++;
+    });
+  }
+}
+
 export default class HUD {
   scene: Scene
   camera: Camera
@@ -28,7 +58,8 @@ export default class HUD {
   message: string
   boost: number
   status: string
-  debug: Array<string>
+  debug: Feed
+  kills: Feed
 
   constructor(window: Window, document: Document) {
     let width = window.innerWidth;
@@ -39,7 +70,8 @@ export default class HUD {
 
     this.onWindowResize();
 
-    this.debug = [];
+    this.debug = new Feed(100, this.gridX, this.gridY);
+    this.kills = new Feed(10, this.gridX, this.gridY);
 
     this.texture = new Texture(canvas)
     this.message = ''
@@ -47,7 +79,6 @@ export default class HUD {
     this.flashTimeout = 1000;
 
     this.cc = canvas.getContext('2d');
-    this.cc.textAlign = 'center';
 
     this.camera = new OrthographicCamera(-width/2, width/2, height/2, -height/2, 0, 30);
     this.scene = new Scene();
@@ -94,10 +125,14 @@ export default class HUD {
     }
 
     this.clear()
+    this.cc.textAlign = 'center';
     this.drawCrosshair()
+
     this.cc.font = 'Normal 60px Sans-Serif';
     this.cc.fillStyle = 'rgb(255, 0, 255)';
     this.cc.fillText(this.message, this.gridX * 10, this.gridX * 5);
+
+    this.cc.textAlign = 'left';
     this.cc.fillText("Boost: " + this.boost.toFixed(0) + "%", this.gridX, this.gridY);
 
     this.cc.font = 'Normal 30px Sans-Serif';
@@ -106,13 +141,10 @@ export default class HUD {
 
     this.cc.font = 'Normal 20px Sans-Serif';
     this.cc.fillStyle = 'rgb(0, 0, 0)';
-    this.cc.textAlign = 'left';
 
-    let i = 1;
-    this.debug.forEach((l) => {
-      this.cc.fillText(l, this.gridX * 16, this.gridY + (this.gridY * i))
-      i++;
-    });
+    this.debug.render(this.cc, 16, 10);
+    this.kills.render(this.cc, 16, 2);
+
     this.texture.needsUpdate = true;
   }
 }

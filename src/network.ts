@@ -6,25 +6,40 @@ import {
 export default class Network {
   lobby: Lobby
   pc: RTCPeerConnection
-  dc: RTCDataChannel
+  stateDC: RTCDataChannel
+  stateOpen: boolean
+  eventDC: RTCDataChannel
+  eventOpen: boolean
   apiURL: string
 
   constructor(lobby: Lobby) {
     this.lobby = lobby;
+    this.lobby.game.net = this; // FIXME: We should probably inverse the dependency.
     this.pc = new RTCPeerConnection({
       iceServers: [{
         urls: "stun:stun.l.google.com:19302"
       }]
     })
     this.apiURL = "https://infisk8.5pi.de";
-    let dc = this.pc.createDataChannel('default', {
+
+    // Unreliable datachannel to broadcast state
+    let stateDC = this.pc.createDataChannel('state', {
       ordered: false,
       maxRetransmits: 0,
     });
-    dc.onclose = () => console.log('dc has closed')
-    dc.onopen = () => this.onopen();
-    dc.onmessage = e => this.lobby.game.onServerMessage(e.data);
-    this.dc = dc;
+    stateDC.onclose = () => console.log('stateDC has closed')
+    stateDC.onopen = () => this.onopenState();
+    stateDC.onmessage = e => this.lobby.game.onServerStateMessage(e.data);
+    this.stateDC = stateDC;
+
+    // Reliable datachannel to broadcast events
+    let eventDC = this.pc.createDataChannel('events');
+
+    eventDC.onclose = () => console.log('eventDC has closed')
+    eventDC.onopen = () => this.onopenEvent();
+    eventDC.onmessage = e => this.lobby.game.onServerEventMessage(e.data);
+    this.eventDC = eventDC;
+
 
     this.pc.oniceconnectionstatechange = () => console.log('state change', this.pc.iceConnectionState)
     this.pc.onicecandidate = event => {
@@ -36,10 +51,20 @@ export default class Network {
       this.pc.createOffer().then(d => this.pc.setLocalDescription(d));
   }
 
-  onopen(): void {
-    console.log('dc has opened');
-    this.lobby.game.net = this;
-    this.lobby.game.start();
+  onopenState(): void {
+    this.stateOpen = true;
+    console.log('stateDC has opened');
+    if (this.eventOpen) {
+      this.lobby.game.start();
+    }
+  }
+
+  onopenEvent(): void {
+    this.eventOpen = true;
+    console.log('eventDC has opened');
+    if (this.eventOpen) {
+      this.lobby.game.start();
+    }
   }
 
   join(pool) {
@@ -53,13 +78,17 @@ export default class Network {
   }
 
   // Called in main loop to send position to peer
-  updateServer(data) {
+  updateServerState(data) {
     // console.log("sending:", data)
-    this.dc.send(data);
+    this.stateDC.send(data);
+  }
+
+  sendEvent(data) {
+    this.eventDC.send(data)
   }
 
   newSession(sdp, pool) {
-    return this.fetch('pool/' + pool.name + '/join', {
+    return this.fetch('pool/' + pool.name + '/join/' + this.lobby.game.player.name, {
       method: "POST",
       body: btoa(sdp.sdp),
     })

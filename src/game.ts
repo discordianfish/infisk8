@@ -21,21 +21,24 @@ import {
 } from 'three';
 
 import Player from './player/player';
+import LocalPlayer from './player/localplayer';
+import RemotePlayer from './player/remoteplayer';
 import Lobby from './lobby';
 import Terrain from './terrain/terrain';
+import TerrainConfig from './terrain/config';
 import Controls from './controls';
 import HUD from './hud';
-import Enemy from './enemy';
 import Audio from './audio';
 import Network from './network';
 import Model from './player/model';
+
+import * as Events from './events';
 
 const vectorDown = new Vector3(0, -1, 0);
 
 export default class Game {
   window: Window
-  player: Player
-  name: string
+  player: LocalPlayer
   controls: Controls
   terrain: Terrain
   scene: Scene
@@ -52,12 +55,11 @@ export default class Game {
 
   prevTime: number
   debug: boolean
-  scoreCounter: number
+  killCounter: number
   constructor(window: Window, document: Document) {
     this.window = window
     let url = new URL(window.location.href);
     this.debug = url.searchParams.get('debug') == '1';
-    this.name = url.searchParams.get('name');
     this.players = {};
 
     this.scene = new Scene()
@@ -86,23 +88,26 @@ export default class Game {
 
     this.terrainSize = 1000;
     let seed = parseFloat(url.searchParams.get('seed')) || 23;
-    this.terrain = new Terrain(seed, this.terrainSize, this.terrainSize, this.terrainSize/5, this.terrainSize/5)
+
+    let terrainConfig = new TerrainConfig();
+    terrainConfig.detailFactor = 0;
+    this.terrain = new Terrain(seed, this.terrainSize, this.terrainSize, terrainConfig)
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
     this.render()
 
     let lobby = new Lobby(document, document.getElementById('menu-wrapper'), this);
     let controls = new Controls(document);
-    this.player = new Player(document, this, controls);
+    this.player = new LocalPlayer(document, this, controls, "unknown");
     this.addEventListeners();
     this.player.addEventListeners();
   }
 
   start() {
-    this.player.object.position.y = 1000;
+    this.player.spawn();
     this.scene.add(this.player.object)
 
-    this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20
+    this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 10
 
     this.prevTime = performance.now();
     this.started = true;
@@ -113,19 +118,29 @@ export default class Game {
     let explode = false;
     Object.keys(this.players).forEach((n) => {
       let player = this.players[n];
-      let d = player.position.distanceTo(object.position)
+      let d = player.object.position.distanceTo(object.position)
       if (d < 2) {
-        this.score("Body Hit @ " + n, 100);
-        // player.die()
+        this.score(player)
+        player.die()
         explode = true
       }
     });
     return explode
   }
 
-  score(message: string, score: number) {
-    this.hud.flash(message);
-    this.scoreCounter += score
+  score(victim: Player) {
+    this.hud.flash(victim.name + " killed");
+    this.hud.kills.add(victim.name + " killed by " + this.player.name);
+    this.net.sendEvent(new Events.Kill(this.player, victim).serialize());
+    this.killCounter += 1
+  }
+
+  die(killer: string) {
+    this.hud.flash("Killed by " + killer);
+    this.player.die()
+    this.player.spawn()
+    this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 10
+    this.killCounter -= 1
   }
 
   registerHitRaycast(object: Object3D): boolean {
@@ -165,7 +180,7 @@ export default class Game {
       return
     }
 
-    this.net.updateServer(this.serialize())
+    this.net.updateServerState(this.serialize())
 
     var time = performance.now();
     var delta = ( time - this.prevTime ) / 1000;
@@ -177,15 +192,30 @@ export default class Game {
     this.render()
   }
 
-  onServerMessage(data): void {
+  onServerStateMessage(data): void {
     // console.log("received:", data);
     this.deserialize(data)
+  }
+
+  onServerEventMessage(data): void {
+    let event = JSON.parse(data);
+    console.log("Event type:", event["type"]);
+
+    // FIXME: Use a typeswitch and the toString() method in the event.
+    switch (event["type"]) {
+      case 'Kill':
+        this.hud.kills.add(event.victim + " killed by " + event.target);
+        if (event.victim == this.player.name) {
+          this.die(event.killer)
+        }
+        break;
+    }
   }
 
   serialize() {
     let p = this.player.object.position;
     return JSON.stringify({
-      name: this.name,
+      name: this.player.name,
       position: [ p.x, p.y, p.z ],
     })
   }
@@ -193,17 +223,16 @@ export default class Game {
   deserialize(data: any) {
     let s = JSON.parse(data);
     if (!this.players.hasOwnProperty(s.name)) {
-      this.players[s.name] = Model()
-      this.scene.add(this.players[s.name]);
+      this.players[s.name] = new RemotePlayer(this, s.name);
       console.log("Spawning model for " + s.name);
     }
-    this.hud.debug = [];
+    this.hud.debug.buffer = [];
     Object.keys(this.players).sort().forEach((p) => {
-      let s = this.players[p];
-      this.hud.debug.push(p + '(' + [s.position.x.toFixed(1), s.position.y.toFixed(1), s.position.z.toFixed(1) ].join(',') + ')');
+      let s = this.players[p].object;
+      this.hud.debug.buffer.push(p + '(' + [s.position.x.toFixed(1), s.position.y.toFixed(1), s.position.z.toFixed(1) ].join(',') + ')');
     });
 
-    this.players[s.name].position.set(s.position[0], s.position[1], s.position[2])
+    this.players[s.name].object.position.set(s.position[0], s.position[1], s.position[2])
     // console.log(s.name + '=(' + s.position.join(',') + ')');
   }
 

@@ -7,26 +7,25 @@ import {
   MeshLambertMaterial,
 } from 'three';
 
+import TerrainConfig from './config';
 import OpenSimplexNoise from 'open-simplex-noise';
 
 export default class Terrain {
-  detailFactor: number
-  heightFactor: number
+  config: TerrainConfig
   noiseGen: OpenSimplexNoise
   mesh: Mesh
 
-  constructor(seed: number, width: number, height: number, widthSegments: number, heightSegments: number) {
+  constructor(seed: number, width: number, height: number, config: TerrainConfig) {
+    this.config = config;
     this.noiseGen = new OpenSimplexNoise(seed);
-    this.detailFactor = 0.02;
-    this.heightFactor = 50;
 
-    var geometry = this.newGeometry(width, height, widthSegments, heightSegments)
+    var geometry = this.newGeometry(width, height, width / 5, height / 5)
     var material = this.newMaterial()
     this.mesh = new Mesh(geometry, material);
   }
 
   getHeight(x: number, y: number): number {
-    return (this.noiseGen.noise2D(x * this.detailFactor, y * this.detailFactor) + 1) * 50;
+    return (this.noiseGen.noise2D(x * this.config.detailFactor, y * this.config.detailFactor) + 1) * 50;
   }
 
   newMaterial(): Material {
