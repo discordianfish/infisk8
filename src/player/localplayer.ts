@@ -26,6 +26,7 @@ export default class LocalPlayer extends Player {
   boost: number
   boostUsePerSecond: number
   boostGainPerSecond: number
+  maxSpeedGround: number = 20
 
   cooldown: number
   lastFired: number
@@ -36,7 +37,7 @@ export default class LocalPlayer extends Player {
     this.controls = controls
 
     this.cooldown = 1000;
-    this.speed = 20;
+    this.speed = 10;
     this.boost = 100;
     this.boostUsePerSecond = 50;
     this.boostGainPerSecond = 10;
@@ -130,9 +131,12 @@ export default class LocalPlayer extends Player {
       controlVelocity.y += direction.y * this.speed;
     }
     controlVelocity.y += Number(boost) * this.speed * delta;
-    controlVelocity.z -= Number(boost) * this.speed * delta;
-    controlVelocity.applyQuaternion(this.object.quaternion);
-    this.rigidbody.velocity.add(controlVelocity);
+    // controlVelocity.z -= Number(boost) * this.speed * delta;
+        controlVelocity.applyQuaternion(this.object.quaternion);
+
+    if (boost || this.rigidbody.velocity.length() < this.maxSpeedGround) {
+      this.rigidbody.velocity.add(controlVelocity);
+    }
 
     // Other controls
     if (this.controls.fire) {

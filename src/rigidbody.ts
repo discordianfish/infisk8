@@ -15,6 +15,7 @@ export default class Rigidbody {
   onGround: boolean
   dragX: number
   dragZ: number
+  bounceFactor: number
   debug: boolean
 
   constructor(game: Game, object: Object3D) {
@@ -23,6 +24,7 @@ export default class Rigidbody {
     this.velocity = new Vector3();
     this.dragX = 0;
     this.dragZ = 0;
+    this.bounceFactor = 1; // 2 = 100% bouncy
   }
 
   update(delta: number): void {
@@ -34,7 +36,9 @@ export default class Rigidbody {
 
     this.velocity.x -= this.velocity.x * this.dragX * delta;
     this.velocity.z -= this.velocity.z * this.dragZ * delta;
-    this.velocity.y -= 9.8 * delta;
+    if (!this.onGround) {
+      this.velocity.y -= 9.8 * delta;
+    }
     this.object.position.add(this.velocity.clone().multiplyScalar(delta));
   }
 
@@ -62,7 +66,7 @@ export default class Rigidbody {
       var normal = n.clone().applyMatrix3(normalMatrix).normalize();
 
       var reflection = new Vector3().copy(this.velocity);
-      reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+      reflection.sub(normal.multiplyScalar(this.bounceFactor * reflection.dot(normal)));
 
       if (this.debug) {
         this.game.scene.add(new ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
