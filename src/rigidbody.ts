@@ -14,7 +14,7 @@ export default class Rigidbody {
   velocity: Vector3
   onGround: boolean
   dragX: number
-  dragY: number
+  dragZ: number
   debug: boolean
 
   constructor(game: Game, object: Object3D) {
@@ -22,17 +22,18 @@ export default class Rigidbody {
     this.object = object;
     this.velocity = new Vector3();
     this.dragX = 0;
-    this.dragY = 0;
+    this.dragZ = 0;
   }
 
   update(delta: number): void {
+    console.log(this.velocity);
     let groundLevel = this.groundCheck();
     let groundDistance = this.object.position.y - groundLevel;
     this.onGround = groundDistance < 1;
     this.object.position.y = Math.max(this.object.position.y, groundLevel);
 
     this.velocity.x -= this.velocity.x * this.dragX * delta;
-    this.velocity.z -= this.velocity.z * this.dragY * delta;
+    this.velocity.z -= this.velocity.z * this.dragZ * delta;
     this.velocity.y -= 9.8 * delta;
     this.object.position.add(this.velocity.clone().multiplyScalar(delta));
   }
@@ -45,6 +46,10 @@ export default class Rigidbody {
     var groundDistance = this.object.position.y - groundLevel;
 
     if (groundDistance < 1) {
+      if (this.onGround) { // not first time we hit the ground, skipping reflection
+        return groundLevel;
+      }
+      console.log("hit ground");
       let intersections = this.game.raycastAll(rayOrigin, vectorDown)
       if (intersections.length == 0) {
         return 0
