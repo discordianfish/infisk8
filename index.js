@@ -53096,6 +53096,37 @@ exports.default = Controls;
 
 /***/ }),
 
+/***/ "./src/events.ts":
+/*!***********************!*\
+  !*** ./src/events.ts ***!
+  \***********************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+class Kill {
+    constructor(killer, victim) {
+        this.victim = victim;
+        this.killer = killer;
+    }
+    toString() {
+        return (this.victim.name + " killed by " + this.killer.name);
+    }
+    serialize() {
+        return (JSON.stringify({
+            "type": "Kill",
+            "victim": this.victim.name,
+            "killer": this.killer.name,
+        }));
+    }
+}
+exports.Kill = Kill;
+
+
+/***/ }),
+
 /***/ "./src/game.ts":
 /*!*********************!*\
   !*** ./src/game.ts ***!
@@ -53107,20 +53138,21 @@ exports.default = Controls;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
-const player_1 = __webpack_require__(/*! ./player/player */ "./src/player/player.ts");
+const localplayer_1 = __webpack_require__(/*! ./player/localplayer */ "./src/player/localplayer.ts");
+const remoteplayer_1 = __webpack_require__(/*! ./player/remoteplayer */ "./src/player/remoteplayer.ts");
 const lobby_1 = __webpack_require__(/*! ./lobby */ "./src/lobby.ts");
 const terrain_1 = __webpack_require__(/*! ./terrain/terrain */ "./src/terrain/terrain.ts");
+const config_1 = __webpack_require__(/*! ./terrain/config */ "./src/terrain/config.ts");
 const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
 const hud_1 = __webpack_require__(/*! ./hud */ "./src/hud.ts");
 const audio_1 = __webpack_require__(/*! ./audio */ "./src/audio.ts");
-const model_1 = __webpack_require__(/*! ./player/model */ "./src/player/model.ts");
+const Events = __webpack_require__(/*! ./events */ "./src/events.ts");
 const vectorDown = new three_1.Vector3(0, -1, 0);
 class Game {
     constructor(window, document) {
         this.window = window;
         let url = new URL(window.location.href);
         this.debug = url.searchParams.get('debug') == '1';
-        this.name = url.searchParams.get('name');
         this.players = {};
         this.scene = new three_1.Scene();
         this.camera = new three_1.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
@@ -53141,20 +53173,21 @@ class Game {
         this.raycaster = new three_1.Raycaster();
         this.terrainSize = 1000;
         let seed = parseFloat(url.searchParams.get('seed')) || 23;
-        this.terrain = new terrain_1.default(seed, this.terrainSize, this.terrainSize, this.terrainSize / 5, this.terrainSize / 5);
+        let terrainConfig = new config_1.default();
+        this.terrain = new terrain_1.default(seed, this.terrainSize, this.terrainSize, terrainConfig);
         this.terrain.mesh.rotation.x = -Math.PI / 2; // FIXME: Generate geometry in correct orientation right away..
         this.scene.add(this.terrain.mesh);
         this.render();
         let lobby = new lobby_1.default(document, document.getElementById('menu-wrapper'), this);
         let controls = new controls_1.default(document);
-        this.player = new player_1.default(document, this, controls);
+        this.player = new localplayer_1.default(document, this, controls, "unknown");
         this.addEventListeners();
         this.player.addEventListeners();
     }
     start() {
-        this.player.object.position.y = 1000;
+        this.player.spawn();
         this.scene.add(this.player.object);
-        this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 20;
+        this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 10;
         this.prevTime = performance.now();
         this.started = true;
     }
@@ -53163,18 +53196,27 @@ class Game {
         let explode = false;
         Object.keys(this.players).forEach((n) => {
             let player = this.players[n];
-            let d = player.position.distanceTo(object.position);
+            let d = player.object.position.distanceTo(object.position);
             if (d < 2) {
-                this.score("Body Hit @ " + n, 100);
-                // player.die()
+                this.score(player);
+                player.die();
                 explode = true;
             }
         });
         return explode;
     }
-    score(message, score) {
-        this.hud.flash(message);
-        this.scoreCounter += score;
+    score(victim) {
+        this.hud.flash(victim.name + " killed");
+        this.hud.kills.add(victim.name + " killed by " + this.player.name);
+        this.net.sendEvent(new Events.Kill(this.player, victim).serialize());
+        this.killCounter += 1;
+    }
+    die(killer) {
+        this.hud.flash("Killed by " + killer);
+        this.player.die();
+        this.player.spawn();
+        this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 10;
+        this.killCounter -= 1;
     }
     registerHitRaycast(object) {
         let position = object.getWorldPosition(new three_1.Vector3());
@@ -53207,7 +53249,7 @@ class Game {
         if (!this.started) {
             return;
         }
-        this.net.updateServer(this.serialize());
+        this.net.updateServerState(this.serialize());
         var time = performance.now();
         var delta = (time - this.prevTime) / 1000;
         this.prevTime = time;
@@ -53216,30 +53258,42 @@ class Game {
         this.hud.update(delta);
         this.render();
     }
-    onServerMessage(data) {
+    onServerStateMessage(data) {
         // console.log("received:", data);
         this.deserialize(data);
+    }
+    onServerEventMessage(data) {
+        let event = JSON.parse(data);
+        console.log("Event type:", event["type"]);
+        // FIXME: Use a typeswitch and the toString() method in the event.
+        switch (event["type"]) {
+            case 'Kill':
+                this.hud.kills.add(event.victim + " killed by " + event.target);
+                if (event.victim == this.player.name) {
+                    this.die(event.killer);
+                }
+                break;
+        }
     }
     serialize() {
         let p = this.player.object.position;
         return JSON.stringify({
-            name: this.name,
+            name: this.player.name,
             position: [p.x, p.y, p.z],
         });
     }
     deserialize(data) {
         let s = JSON.parse(data);
         if (!this.players.hasOwnProperty(s.name)) {
-            this.players[s.name] = model_1.default();
-            this.scene.add(this.players[s.name]);
+            this.players[s.name] = new remoteplayer_1.default(this, s.name);
             console.log("Spawning model for " + s.name);
         }
-        this.hud.debug = [];
+        this.hud.debug.buffer = [];
         Object.keys(this.players).sort().forEach((p) => {
-            let s = this.players[p];
-            this.hud.debug.push(p + '(' + [s.position.x.toFixed(1), s.position.y.toFixed(1), s.position.z.toFixed(1)].join(',') + ')');
+            let s = this.players[p].object;
+            this.hud.debug.buffer.push(p + '(' + [s.position.x.toFixed(1), s.position.y.toFixed(1), s.position.z.toFixed(1)].join(',') + ')');
         });
-        this.players[s.name].position.set(s.position[0], s.position[1], s.position[2]);
+        this.players[s.name].object.position.set(s.position[0], s.position[1], s.position[2]);
         // console.log(s.name + '=(' + s.position.join(',') + ')');
     }
     render() {
@@ -53276,6 +53330,28 @@ const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/thr
 function nextPow2(n) {
     return Math.pow(2, Math.ceil(Math.log(n) / Math.log(2)));
 }
+class Feed {
+    constructor(size, gridX, gridY) {
+        this.size = size;
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.buffer = [];
+    }
+    add(line) {
+        console.log("adding this to buffeR", line);
+        this.buffer.push(line);
+        if (this.buffer.length > this.size) {
+            this.buffer.shift();
+        }
+    }
+    render(canvas, x, y) {
+        let i = 0;
+        this.buffer.forEach((l) => {
+            canvas.fillText(l, x * this.gridX, (y * this.gridY) + (this.gridY * i));
+            i++;
+        });
+    }
+}
 class HUD {
     constructor(window, document) {
         let width = window.innerWidth;
@@ -53283,12 +53359,12 @@ class HUD {
         let canvas = document.createElement('canvas');
         this.canvas = canvas;
         this.onWindowResize();
-        this.debug = [];
+        this.debug = new Feed(100, this.gridX, this.gridY);
+        this.kills = new Feed(10, this.gridX, this.gridY);
         this.texture = new three_1.Texture(canvas);
         this.message = '';
         this.flashTimeout = 1000;
         this.cc = canvas.getContext('2d');
-        this.cc.textAlign = 'center';
         this.camera = new three_1.OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 0, 30);
         this.scene = new three_1.Scene();
         this.drawCrosshair();
@@ -53322,22 +53398,20 @@ class HUD {
             this.message = "";
         }
         this.clear();
+        this.cc.textAlign = 'center';
         this.drawCrosshair();
         this.cc.font = 'Normal 60px Sans-Serif';
         this.cc.fillStyle = 'rgb(255, 0, 255)';
         this.cc.fillText(this.message, this.gridX * 10, this.gridX * 5);
+        this.cc.textAlign = 'left';
         this.cc.fillText("Boost: " + this.boost.toFixed(0) + "%", this.gridX, this.gridY);
         this.cc.font = 'Normal 30px Sans-Serif';
         this.cc.fillText(this.status, this.gridX * 16, this.gridY);
         this.texture.needsUpdate = true;
         this.cc.font = 'Normal 20px Sans-Serif';
         this.cc.fillStyle = 'rgb(0, 0, 0)';
-        this.cc.textAlign = 'left';
-        let i = 1;
-        this.debug.forEach((l) => {
-            this.cc.fillText(l, this.gridX * 16, this.gridY + (this.gridY * i));
-            i++;
-        });
+        this.debug.render(this.cc, 16, 10);
+        this.kills.render(this.cc, 16, 2);
         this.texture.needsUpdate = true;
     }
 }
@@ -53414,8 +53488,8 @@ class Lobby {
         });
     }
     join(pool) {
-        this.game.name = this.nameField.value;
-        this.game.hud.status = this.game.name + "@" + pool.name;
+        this.game.player.name = this.nameField.value;
+        this.game.hud.status = this.game.player.name + "@" + pool.name;
         this.net.join(pool);
     }
     lockPointer() {
@@ -53455,20 +53529,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class Network {
     constructor(lobby) {
         this.lobby = lobby;
+        this.lobby.game.net = this; // FIXME: We should probably inverse the dependency.
         this.pc = new RTCPeerConnection({
             iceServers: [{
                     urls: "stun:stun.l.google.com:19302"
                 }]
         });
         this.apiURL = "https://infisk8.5pi.de";
-        let dc = this.pc.createDataChannel('default', {
+        // Unreliable datachannel to broadcast state
+        let stateDC = this.pc.createDataChannel('state', {
             ordered: false,
             maxRetransmits: 0,
         });
-        dc.onclose = () => console.log('dc has closed');
-        dc.onopen = () => this.onopen();
-        dc.onmessage = e => this.lobby.game.onServerMessage(e.data);
-        this.dc = dc;
+        stateDC.onclose = () => console.log('stateDC has closed');
+        stateDC.onopen = () => this.onopenState();
+        stateDC.onmessage = e => this.lobby.game.onServerStateMessage(e.data);
+        this.stateDC = stateDC;
+        // Reliable datachannel to broadcast events
+        let eventDC = this.pc.createDataChannel('events');
+        eventDC.onclose = () => console.log('eventDC has closed');
+        eventDC.onopen = () => this.onopenEvent();
+        eventDC.onmessage = e => this.lobby.game.onServerEventMessage(e.data);
+        this.eventDC = eventDC;
         this.pc.oniceconnectionstatechange = () => console.log('state change', this.pc.iceConnectionState);
         this.pc.onicecandidate = event => {
             if (event.candidate === null) {
@@ -53477,10 +53559,19 @@ class Network {
         };
         this.pc.onnegotiationneeded = e => this.pc.createOffer().then(d => this.pc.setLocalDescription(d));
     }
-    onopen() {
-        console.log('dc has opened');
-        this.lobby.game.net = this;
-        this.lobby.game.start();
+    onopenState() {
+        this.stateOpen = true;
+        console.log('stateDC has opened');
+        if (this.eventOpen) {
+            this.lobby.game.start();
+        }
+    }
+    onopenEvent() {
+        this.eventOpen = true;
+        console.log('eventDC has opened');
+        if (this.eventOpen) {
+            this.lobby.game.start();
+        }
     }
     join(pool) {
         this.newSession(this.pc.localDescription, pool)
@@ -53492,12 +53583,15 @@ class Network {
         });
     }
     // Called in main loop to send position to peer
-    updateServer(data) {
+    updateServerState(data) {
         // console.log("sending:", data)
-        this.dc.send(data);
+        this.stateDC.send(data);
+    }
+    sendEvent(data) {
+        this.eventDC.send(data);
     }
     newSession(sdp, pool) {
-        return this.fetch('pool/' + pool.name + '/join', {
+        return this.fetch('pool/' + pool.name + '/join/' + this.lobby.game.player.name, {
             method: "POST",
             body: btoa(sdp.sdp),
         })
@@ -53525,48 +53619,10 @@ exports.default = Network;
 
 /***/ }),
 
-/***/ "./src/player/model.ts":
-/*!*****************************!*\
-  !*** ./src/player/model.ts ***!
-  \*****************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
-const lathePoints = [
-    new three_1.Vector2(0, 2.0),
-    new three_1.Vector2(0.1, 2.0),
-    new three_1.Vector2(0.2, 1.9),
-    new three_1.Vector2(0.2, 1.7),
-    new three_1.Vector2(0.1, 1.5),
-    new three_1.Vector2(0.1, 1.4),
-    new three_1.Vector2(0.3, 1.3),
-    new three_1.Vector2(0.3, 1.2),
-    new three_1.Vector2(0.1, 1.2),
-    new three_1.Vector2(0.1, 1.1),
-    new three_1.Vector2(0.3, 1.1),
-    new three_1.Vector2(0.1, 0.2),
-    new three_1.Vector2(0.2, 0.05),
-    new three_1.Vector2(0, 0),
-];
-function Model() {
-    var geometry = new three_1.LatheGeometry(lathePoints);
-    var material = new three_1.MeshPhysicalMaterial({ color: 0xff0000 });
-    material.side = three_1.DoubleSide;
-    return new three_1.Mesh(geometry, material);
-}
-exports.default = Model;
-
-
-/***/ }),
-
-/***/ "./src/player/player.ts":
-/*!******************************!*\
-  !*** ./src/player/player.ts ***!
-  \******************************/
+/***/ "./src/player/localplayer.ts":
+/*!***********************************!*\
+  !*** ./src/player/localplayer.ts ***!
+  \***********************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -53576,17 +53632,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
 const projectile_1 = __webpack_require__(/*! ../projectile/projectile */ "./src/projectile/projectile.ts");
 const rigidbody_1 = __webpack_require__(/*! ../rigidbody */ "./src/rigidbody.ts");
+const player_1 = __webpack_require__(/*! ./player */ "./src/player/player.ts");
 var PI_2 = Math.PI / 2;
 const vector3Zero = new three_1.Vector3();
 const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
 const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
-class Player {
-    constructor(document, game, controls) {
+class LocalPlayer extends player_1.default {
+    constructor(document, game, controls, name) {
+        super(game, name);
+        this.maxSpeedGround = 20;
         this.document = document;
         this.game = game;
         this.controls = controls;
         this.cooldown = 1000;
-        this.speed = 20;
+        this.speed = 10;
         this.boost = 100;
         this.boostUsePerSecond = 50;
         this.boostGainPerSecond = 10;
@@ -53596,6 +53655,7 @@ class Player {
         game.camera.rotation.set(0, 0, 0);
         this.pitchObject = new three_1.Object3D();
         this.pitchObject.add(game.camera);
+        this.pitchObject.position.y = 1.5;
         this.object = new three_1.Object3D();
         this.object.add(this.pitchObject);
         this.rigidbody = new rigidbody_1.default(game, this.object);
@@ -53669,9 +53729,11 @@ class Player {
             controlVelocity.y += direction.y * this.speed;
         }
         controlVelocity.y += Number(boost) * this.speed * delta;
-        controlVelocity.z -= Number(boost) * this.speed * delta;
+        // controlVelocity.z -= Number(boost) * this.speed * delta;
         controlVelocity.applyQuaternion(this.object.quaternion);
-        this.rigidbody.velocity.add(controlVelocity);
+        if (boost || this.rigidbody.velocity.length() < this.maxSpeedGround) {
+            this.rigidbody.velocity.add(controlVelocity);
+        }
         // Other controls
         if (this.controls.fire) {
             this.fire();
@@ -53689,8 +53751,106 @@ class Player {
         this.rigidbody.update(delta);
     }
 }
-exports.default = Player;
+exports.default = LocalPlayer;
 ;
+
+
+/***/ }),
+
+/***/ "./src/player/model.ts":
+/*!*****************************!*\
+  !*** ./src/player/model.ts ***!
+  \*****************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const lathePoints = [
+    new three_1.Vector2(0, 2.0),
+    new three_1.Vector2(0.1, 2.0),
+    new three_1.Vector2(0.2, 1.9),
+    new three_1.Vector2(0.2, 1.7),
+    new three_1.Vector2(0.1, 1.5),
+    new three_1.Vector2(0.1, 1.4),
+    new three_1.Vector2(0.3, 1.3),
+    new three_1.Vector2(0.3, 1.2),
+    new three_1.Vector2(0.1, 1.2),
+    new three_1.Vector2(0.1, 1.1),
+    new three_1.Vector2(0.3, 1.1),
+    new three_1.Vector2(0.1, 0.2),
+    new three_1.Vector2(0.2, 0.05),
+    new three_1.Vector2(0, 0),
+];
+function Model() {
+    var geometry = new three_1.LatheGeometry(lathePoints);
+    var material = new three_1.MeshPhysicalMaterial({ color: 0xff0000 });
+    return new three_1.Mesh(geometry, material);
+}
+exports.default = Model;
+
+
+/***/ }),
+
+/***/ "./src/player/player.ts":
+/*!******************************!*\
+  !*** ./src/player/player.ts ***!
+  \******************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+class Player {
+    constructor(game, name) {
+        this.game = game;
+        this.name = name;
+    }
+    die() {
+        this.died = performance.now();
+        this.game.audio.die(this.object.position);
+        console.log("Died!");
+    }
+    // FIXME: Eventually we want to smart/random respawn close to enemies
+    spawn() {
+        this.object.position.x = 0;
+        this.object.position.y = 1000;
+        this.object.position.z = 0;
+    }
+    update(delta) {
+        if (this.died != null) {
+            this.object.scale.multiplyScalar(delta);
+        }
+    }
+}
+exports.default = Player;
+
+
+/***/ }),
+
+/***/ "./src/player/remoteplayer.ts":
+/*!************************************!*\
+  !*** ./src/player/remoteplayer.ts ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const player_1 = __webpack_require__(/*! ./player */ "./src/player/player.ts");
+const model_1 = __webpack_require__(/*! ./model */ "./src/player/model.ts");
+class RemotePlayer extends player_1.default {
+    constructor(game, name) {
+        super(game, name);
+        this.object = model_1.default();
+        game.scene.add(this.object);
+    }
+}
+exports.default = RemotePlayer;
 
 
 /***/ }),
@@ -53837,16 +53997,20 @@ class Rigidbody {
         this.object = object;
         this.velocity = new three_1.Vector3();
         this.dragX = 0;
-        this.dragY = 0;
+        this.dragZ = 0;
+        this.bounceFactor = 1; // 2 = 100% bouncy
     }
     update(delta) {
+        console.log(this.velocity);
         let groundLevel = this.groundCheck();
         let groundDistance = this.object.position.y - groundLevel;
         this.onGround = groundDistance < 1;
         this.object.position.y = Math.max(this.object.position.y, groundLevel);
         this.velocity.x -= this.velocity.x * this.dragX * delta;
-        this.velocity.z -= this.velocity.z * this.dragY * delta;
-        this.velocity.y -= 9.8 * delta;
+        this.velocity.z -= this.velocity.z * this.dragZ * delta;
+        if (!this.onGround) {
+            this.velocity.y -= 9.8 * delta;
+        }
         this.object.position.add(this.velocity.clone().multiplyScalar(delta));
     }
     groundCheck() {
@@ -53856,6 +54020,10 @@ class Rigidbody {
         var groundLevel = this.game.terrain.getHeight(this.object.position.x, this.object.position.z);
         var groundDistance = this.object.position.y - groundLevel;
         if (groundDistance < 1) {
+            if (this.onGround) { // not first time we hit the ground, skipping reflection
+                return groundLevel;
+            }
+            console.log("hit ground");
             let intersections = this.game.raycastAll(rayOrigin, vectorDown);
             if (intersections.length == 0) {
                 return 0;
@@ -53865,7 +54033,7 @@ class Rigidbody {
             var normalMatrix = new three_1.Matrix3().getNormalMatrix(intersections[0].object.matrixWorld);
             var normal = n.clone().applyMatrix3(normalMatrix).normalize();
             var reflection = new three_1.Vector3().copy(this.velocity);
-            reflection.sub(normal.multiplyScalar(2 * reflection.dot(normal)));
+            reflection.sub(normal.multiplyScalar(this.bounceFactor * reflection.dot(normal)));
             if (this.debug) {
                 this.game.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
                 this.game.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
@@ -53876,6 +54044,27 @@ class Rigidbody {
     }
 }
 exports.default = Rigidbody;
+
+
+/***/ }),
+
+/***/ "./src/terrain/config.ts":
+/*!*******************************!*\
+  !*** ./src/terrain/config.ts ***!
+  \*******************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+class TerrainConfig {
+    constructor() {
+        this.heightFactor = 50;
+        this.octaves = [0.001, 0.02, 0.03];
+    }
+}
+exports.default = TerrainConfig;
 
 
 /***/ }),
@@ -53893,16 +54082,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
 const open_simplex_noise_1 = __webpack_require__(/*! open-simplex-noise */ "./node_modules/open-simplex-noise/lib/index.js");
 class Terrain {
-    constructor(seed, width, height, widthSegments, heightSegments) {
+    constructor(seed, width, height, config) {
+        this.config = config;
         this.noiseGen = new open_simplex_noise_1.default(seed);
-        this.detailFactor = 0.02;
-        this.heightFactor = 50;
-        var geometry = this.newGeometry(width, height, widthSegments, heightSegments);
+        var geometry = this.newGeometry(width, height, width / 5, height / 5);
         var material = this.newMaterial();
         this.mesh = new three_1.Mesh(geometry, material);
     }
     getHeight(x, y) {
-        return (this.noiseGen.noise2D(x * this.detailFactor, y * this.detailFactor) + 1) * 50;
+        let h = 0;
+        this.config.octaves.forEach((f) => {
+            h += this.noiseGen.noise2D(x * f, y * f);
+        });
+        h = h / this.config.octaves.length; // normalize
+        return (h * this.config.heightFactor);
     }
     newMaterial() {
         return new three_1.MeshLambertMaterial({
