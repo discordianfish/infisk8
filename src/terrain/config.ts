@@ -1,4 +1,4 @@
 export default class TerrainConfig {
-  detailFactor: number = 0.02
-  constructor() {}
+  heightFactor: number = 50
+  octaves: Array<number> = [ 0.001, 0.02, 0.03 ]
 }

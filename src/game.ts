@@ -90,7 +90,6 @@ export default class Game {
     let seed = parseFloat(url.searchParams.get('seed')) || 23;
 
     let terrainConfig = new TerrainConfig();
-    terrainConfig.detailFactor = 0;
     this.terrain = new Terrain(seed, this.terrainSize, this.terrainSize, terrainConfig)
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)

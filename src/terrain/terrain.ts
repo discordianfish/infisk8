@@ -25,7 +25,12 @@ export default class Terrain {
   }
 
   getHeight(x: number, y: number): number {
-    return (this.noiseGen.noise2D(x * this.config.detailFactor, y * this.config.detailFactor) + 1) * 50;
+    let h = 0;
+    this.config.octaves.forEach((f) => {
+      h += this.noiseGen.noise2D(x * f, y * f)
+    });
+    h = h / this.config.octaves.length; // normalize
+    return(h * this.config.heightFactor)
   }
 
   newMaterial(): Material {
