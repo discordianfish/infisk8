@@ -52909,6 +52909,7 @@ class Noise {
         filter.type = 'lowpass';
         filter.frequency.value = 500;
         source.connect(filter);
+        this.filter = filter;
         let gain = context.createGain();
         filter.connect(gain);
         gain.connect(context.destination);
@@ -52927,12 +52928,19 @@ class Noise {
     }
 }
 class Audio {
+    // windAudio: Noise
     constructor(window) {
         this.window = window;
         this.context = new AudioContext;
         this.boostAudio = new Noise(this.context);
         this.boostAudio.source.start(0);
         this.boostAudio.gain.gain.value = 0;
+        this.slideAudio = new Noise(this.context);
+        this.slideAudio.source.start(0);
+        this.slideAudio.gain.gain.value = 0;
+        this.slideAudio.filter.type = 'bandpass';
+        this.slideAudio.filter.Q.value = 10;
+        this.slideAudio.filter.frequency.value = 800;
     }
     fire() {
         let now = this.context.currentTime;
@@ -52969,6 +52977,17 @@ class Audio {
         else {
             this.boostAudio.gain.gain.value = 0;
         }
+    }
+    crash(damage) {
+        let start = this.context.currentTime;
+        console.log("playing crash");
+        let noise = new Noise(this.context);
+        this.boostAudio.gain.gain.value = Math.max(1, damage / 10);
+        noise.filter.type = 'bandpass';
+        noise.filter.Q.value = Math.max(100, damage);
+        noise.filter.frequency.value = 500;
+        noise.source.start(start);
+        noise.source.stop(start + 0.2);
     }
     ground(position) {
         let start = this.context.currentTime;
@@ -53254,8 +53273,8 @@ class Game {
         var delta = (time - this.prevTime) / 1000;
         this.prevTime = time;
         this.player.update(delta);
-        // this.enemies.forEach((enemy) => enemy.update(delta));
         this.hud.update(delta);
+        this.hud.status = this.player.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1)].join(',') + ')';
         this.render();
     }
     onServerStateMessage(data) {
@@ -53405,6 +53424,8 @@ class HUD {
         this.cc.fillText(this.message, this.gridX * 10, this.gridX * 5);
         this.cc.textAlign = 'left';
         this.cc.fillText("Boost: " + this.boost.toFixed(0) + "%", this.gridX, this.gridY);
+        this.cc.fillStyle = 'rgb(255, 0, 0)';
+        this.cc.fillText("Health: " + this.health.toFixed(0) + "%", this.gridX, this.gridY * 2);
         this.cc.font = 'Normal 30px Sans-Serif';
         this.cc.fillText(this.status, this.gridX * 16, this.gridY);
         this.texture.needsUpdate = true;
@@ -53489,7 +53510,6 @@ class Lobby {
     }
     join(pool) {
         this.game.player.name = this.nameField.value;
-        this.game.hud.status = this.game.player.name + "@" + pool.name;
         this.net.join(pool);
     }
     lockPointer() {
@@ -53640,14 +53660,16 @@ const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
 class LocalPlayer extends player_1.default {
     constructor(document, game, controls, name) {
         super(game, name);
+        this.boostFactor = 1.5;
         this.maxSpeedGround = 20;
+        this.health = 100;
         this.document = document;
         this.game = game;
         this.controls = controls;
         this.cooldown = 1000;
         this.speed = 10;
         this.boost = 100;
-        this.boostUsePerSecond = 50;
+        this.boostUsePerSecond = 40;
         this.boostGainPerSecond = 10;
         this.lastFired = performance.now();
         this.plElement = document.body;
@@ -53722,14 +53744,15 @@ class LocalPlayer extends player_1.default {
             }
         }
         this.game.hud.boost = this.boost;
+        this.game.hud.health = this.health;
         this.game.audio.boost(boost, this.object.position);
         if (this.rigidbody.onGround || boost) {
             controlVelocity.z -= direction.z * this.speed * delta;
             controlVelocity.x -= direction.x * this.speed * delta;
             controlVelocity.y += direction.y * this.speed;
         }
-        controlVelocity.y += Number(boost) * this.speed * delta;
-        // controlVelocity.z -= Number(boost) * this.speed * delta;
+        this.game.audio.slideAudio.gain.gain.value = this.rigidbody.onGround ? 0.1 : 0;
+        controlVelocity.y += Number(boost) * this.boostFactor * this.speed * delta;
         controlVelocity.applyQuaternion(this.object.quaternion);
         if (boost || this.rigidbody.velocity.length() < this.maxSpeedGround) {
             this.rigidbody.velocity.add(controlVelocity);
@@ -53749,6 +53772,20 @@ class LocalPlayer extends player_1.default {
         this.projectiles = projectiles;
         // Apply collision based momentum
         this.rigidbody.update(delta);
+        if (this.rigidbody.impactMagnitude > 20) {
+            console.log("crashed");
+            let damage = (this.rigidbody.impactMagnitude - 20) * 3;
+            this.health -= damage;
+            this.game.audio.crash(damage);
+        }
+        if (this.health <= 0) {
+            this.die();
+            this.health = 100;
+            this.game.hud.flash("You died");
+            this.rigidbody.velocity = new three_1.Vector3();
+            this.spawn();
+            this.object.position.y = this.game.terrain.getHeight(this.object.position.x, this.object.position.z) + 10;
+        }
     }
 }
 exports.default = LocalPlayer;
@@ -54001,7 +54038,7 @@ class Rigidbody {
         this.bounceFactor = 1; // 2 = 100% bouncy
     }
     update(delta) {
-        console.log(this.velocity);
+        this.impactMagnitude = 0;
         let groundLevel = this.groundCheck();
         let groundDistance = this.object.position.y - groundLevel;
         this.onGround = groundDistance < 1;
@@ -54034,6 +54071,8 @@ class Rigidbody {
             var normal = n.clone().applyMatrix3(normalMatrix).normalize();
             var reflection = new three_1.Vector3().copy(this.velocity);
             reflection.sub(normal.multiplyScalar(this.bounceFactor * reflection.dot(normal)));
+            this.impactMagnitude = reflection.clone().sub(this.velocity).length();
+            console.log("impact magnitude", this.impactMagnitude);
             if (this.debug) {
                 this.game.scene.add(new three_1.ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));
                 this.game.scene.add(new three_1.ArrowHelper(reflection, intersections[0].point, reflection.length() * 10, 0xff0000));
