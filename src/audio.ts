@@ -44,6 +44,7 @@ class Noise {
   context: AudioContext
   source: AudioScheduledSourceNode
   gain: GainNode
+  filter: BiquadFilterNode
   constructor(context: AudioContext) {
     this.context = context;
     let source = context.createBufferSource()
@@ -53,6 +54,7 @@ class Noise {
     filter.type = 'lowpass';
     filter.frequency.value = 500;
     source.connect(filter);
+    this.filter = filter;
 
     let gain = context.createGain();
     filter.connect(gain);
@@ -79,13 +81,23 @@ export default class Audio {
   context: AudioContext
   gain: GainNode
   boostAudio: Noise
+  slideAudio: Noise
+  // windAudio: Noise
 
   constructor(window: Window) {
     this.window = window;
     this.context = new AudioContext;
+
     this.boostAudio = new Noise(this.context)
     this.boostAudio.source.start(0);
     this.boostAudio.gain.gain.value = 0;
+
+    this.slideAudio = new Noise(this.context)
+    this.slideAudio.source.start(0);
+    this.slideAudio.gain.gain.value = 0;
+    this.slideAudio.filter.type = 'bandpass';
+    this.slideAudio.filter.Q.value = 10;
+    this.slideAudio.filter.frequency.value = 800;
   }
 
   fire() {
@@ -127,6 +139,20 @@ export default class Audio {
     } else {
       this.boostAudio.gain.gain.value = 0
     }
+  }
+
+  crash(damage: number) {
+    let start = this.context.currentTime;
+    console.log("playing crash");
+    let noise = new Noise(this.context);
+
+    this.boostAudio.gain.gain.value = Math.max(1, damage / 10);
+    noise.filter.type = 'bandpass';
+    noise.filter.Q.value = Math.max(100, damage);
+    noise.filter.frequency.value = 500;
+
+    noise.source.start(start);
+    noise.source.stop(start+0.2);
   }
 
   ground(position: Vector3) {

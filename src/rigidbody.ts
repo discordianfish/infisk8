@@ -17,6 +17,7 @@ export default class Rigidbody {
   dragZ: number
   bounceFactor: number
   debug: boolean
+  impactMagnitude: number
 
   constructor(game: Game, object: Object3D) {
     this.game = game;
@@ -28,7 +29,7 @@ export default class Rigidbody {
   }
 
   update(delta: number): void {
-    console.log(this.velocity);
+    this.impactMagnitude = 0;
     let groundLevel = this.groundCheck();
     let groundDistance = this.object.position.y - groundLevel;
     this.onGround = groundDistance < 1;
@@ -67,6 +68,9 @@ export default class Rigidbody {
 
       var reflection = new Vector3().copy(this.velocity);
       reflection.sub(normal.multiplyScalar(this.bounceFactor * reflection.dot(normal)));
+
+      this.impactMagnitude = reflection.clone().sub(this.velocity).length();
+      console.log("impact magnitude", this.impactMagnitude);
 
       if (this.debug) {
         this.game.scene.add(new ArrowHelper(this.velocity, intersections[0].point, this.velocity.length() * 10, 0x0000ff));

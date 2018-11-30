@@ -57,6 +57,7 @@ export default class HUD {
   // Game stats
   message: string
   boost: number
+  health: number
   status: string
   debug: Feed
   kills: Feed
@@ -134,6 +135,8 @@ export default class HUD {
 
     this.cc.textAlign = 'left';
     this.cc.fillText("Boost: " + this.boost.toFixed(0) + "%", this.gridX, this.gridY);
+    this.cc.fillStyle = 'rgb(255, 0, 0)';
+    this.cc.fillText("Health: " + this.health.toFixed(0) + "%", this.gridX, this.gridY * 2);
 
     this.cc.font = 'Normal 30px Sans-Serif';
     this.cc.fillText(this.status, this.gridX * 16, this.gridY);

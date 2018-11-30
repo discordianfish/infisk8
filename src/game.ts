@@ -186,8 +186,8 @@ export default class Game {
     this.prevTime = time;
 
     this.player.update(delta);
-    // this.enemies.forEach((enemy) => enemy.update(delta));
     this.hud.update(delta);
+    this.hud.status = this.player.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1) ].join(',') + ')';
     this.render()
   }
 
