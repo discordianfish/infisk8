@@ -41,6 +41,7 @@ export default class Rigidbody {
       this.velocity.y -= 9.8 * delta;
     }
     this.object.position.add(this.velocity.clone().multiplyScalar(delta));
+    // console.log("Post in rb", this.object.position);
   }
 
   groundCheck(): number {
@@ -49,6 +50,7 @@ export default class Rigidbody {
     rayOrigin.y += rayOffset;
     var groundLevel = this.game.terrain.getHeight(this.object.position.x, this.object.position.z);
     var groundDistance = this.object.position.y - groundLevel;
+    //console.log("@groundcheck groundDistance", groundDistance, "groundLevel", groundLevel, "at", this.object.position)
 
     if (groundDistance < 1) {
       if (this.onGround) { // not first time we hit the ground, skipping reflection

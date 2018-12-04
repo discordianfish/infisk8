@@ -1,49 +1,41 @@
 import {
-  Object3D,
-  BufferGeometry,
-  Intersection,
-  Camera,
-  Float32BufferAttribute,
   DirectionalLight,
   Mesh,
-  Material,
-  MeshLambertMaterial,
   Scene,
-  PerspectiveCamera,
   WebGLRenderer,
   AxesHelper,
   Vector3,
   Raycaster,
-  Matrix3,
   ArrowHelper,
+  Object3D,
   Renderer,
   Quaternion,
 } from 'three';
 
-import Player from './player/player';
-import LocalPlayer from './player/localplayer';
-import RemotePlayer from './player/remoteplayer';
-import Lobby from './lobby';
-import Terrain from './terrain/terrain';
-import TerrainConfig from './terrain/config';
+import Audio from './audio';
 import Controls from './controls';
 import HUD from './hud';
-import Audio from './audio';
-import Network from './network';
+import Lobby from './lobby';
+import LocalPlayer from './player/localplayer';
 import Model from './player/model';
+import Network from './network';
+import Player from './player/player';
+import RemotePlayer from './player/remoteplayer';
+import SceneManager from './scene_manager';
+import Terrain from './terrain/terrain';
+import TerrainConfig from './terrain/config';
 
 import * as Events from './events';
 
 const vectorDown = new Vector3(0, -1, 0);
 
 export default class Game {
-  window: Window
   player: LocalPlayer
   controls: Controls
+  lobby: Lobby
   terrain: Terrain
   scene: Scene
-  renderer: WebGLRenderer
-  camera: PerspectiveCamera
+  sm: SceneManager // FIXME: We shouldn't know about this. This should be removed once we don't need to access camera from localplayer
   hud: HUD
   audio: Audio
   terrainSize: number
@@ -53,25 +45,22 @@ export default class Game {
 
   raycaster: Raycaster
 
-  prevTime: number
   debug: boolean
   killCounter: number
-  constructor(window: Window, document: Document) {
-    this.window = window
-    let url = new URL(window.location.href);
-    this.debug = url.searchParams.get('debug') == '1';
+  constructor(scene: Scene, sm: SceneManager, controls: Controls, hud: HUD, audio: Audio, net: Network, lobby: Lobby, debug: boolean) {
+    this.scene = scene;
+    this.sm = sm;
+    this.controls = controls;
+    this.hud = hud;
+    this.audio = audio;
+    this.net = net;
+    this.lobby = lobby;
+    this.debug = debug
     this.players = {};
 
-    this.scene = new Scene()
-    this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000)
-    let renderer = new WebGLRenderer()
-    renderer.autoClear = false;
-    renderer.setClearColor(0xBDFFFD);
-    this.renderer = renderer;
-
-
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
-    document.body.appendChild(this.renderer.domElement)
+    this.net.stateDC.onmessage = e => this.onServerStateMessage(e.data);
+    this.net.eventDC.onmessage = e => this.onServerEventMessage(e.data);
+    this.net.onstart = () => this.start();
 
     let light = new DirectionalLight(0xffffff, 1.0)
     light.position.set(100, 100, 100)
@@ -81,34 +70,26 @@ export default class Game {
     light2.position.set(-100, 100, -100)
     this.scene.add(light2)
 
-    this.hud = new HUD(window, document);
-    this.audio = new Audio(window);
-
     this.raycaster = new Raycaster();
 
     this.terrainSize = 1000;
-    let seed = parseFloat(url.searchParams.get('seed')) || 23;
+    let seed = 23;
 
     let terrainConfig = new TerrainConfig();
     this.terrain = new Terrain(seed, this.terrainSize, this.terrainSize, terrainConfig)
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
-    this.render()
 
-    let lobby = new Lobby(document, document.getElementById('menu-wrapper'), this);
-    let controls = new Controls(document);
-    this.player = new LocalPlayer(document, this, controls, "unknown");
-    this.addEventListeners();
-    this.player.addEventListeners();
+    this.player = new LocalPlayer(document, this, controls, sm.object, lobby.name);
   }
 
   start() {
+    console.log("@start");
     this.player.spawn();
     this.scene.add(this.player.object)
 
     this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 10
 
-    this.prevTime = performance.now();
     this.started = true;
   }
 
@@ -127,10 +108,11 @@ export default class Game {
     return explode
   }
 
-  score(victim: Player) {
+  score(victim: RemotePlayer) {
     this.hud.flash(victim.name + " killed");
-    this.hud.kills.add(victim.name + " killed by " + this.player.name);
-    this.net.sendEvent(new Events.Kill(this.player, victim).serialize());
+    this.hud.kills.add(victim.name + " killed by " + this.lobby.name);
+    const rp = <RemotePlayer>this.player
+    this.net.sendEvent(new Events.Kill(rp, victim).serialize());
     this.killCounter += 1
   }
 
@@ -173,22 +155,13 @@ export default class Game {
     return this.raycaster.intersectObjects(objects);
   }
 
-  update(): void {
-    requestAnimationFrame(() => this.update());
+  update(delta: number): void {
     if (!this.started) {
       return
     }
-
-    this.net.updateServerState(this.serialize())
-
-    var time = performance.now();
-    var delta = ( time - this.prevTime ) / 1000;
-    this.prevTime = time;
-
     this.player.update(delta);
-    this.hud.update(delta);
-    this.hud.status = this.player.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1) ].join(',') + ')';
-    this.render()
+    this.hud.status = this.lobby.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1) ].join(',') + ')';
+    this.net.updateServerState(this.serialize());
   }
 
   onServerStateMessage(data): void {
@@ -204,7 +177,7 @@ export default class Game {
     switch (event["type"]) {
       case 'Kill':
         this.hud.kills.add(event.victim + " killed by " + event.target);
-        if (event.victim == this.player.name) {
+        if (event.victim == this.lobby.name) {
           this.die(event.killer)
         }
         break;
@@ -214,7 +187,7 @@ export default class Game {
   serialize() {
     let p = this.player.object.position;
     return JSON.stringify({
-      name: this.player.name,
+      name: this.lobby.name,
       position: [ p.x, p.y, p.z ],
     })
   }
@@ -233,22 +206,5 @@ export default class Game {
 
     this.players[s.name].object.position.set(s.position[0], s.position[1], s.position[2])
     // console.log(s.name + '=(' + s.position.join(',') + ')');
-  }
-
-  render(): void {
-    this.renderer.clear(true, true, true);
-    this.renderer.render(this.scene, this.camera);
-    this.renderer.render(this.hud.scene, this.hud.camera);
-  }
-
-  addEventListeners() {
-    this.window.addEventListener('resize', () => this.onWindowResize(), false);
-  }
-
-  onWindowResize(){
-    this.hud.onWindowResize();
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize( window.innerWidth, window.innerHeight );
   }
 }

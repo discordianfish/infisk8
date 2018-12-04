@@ -1,8 +1,8 @@
-import Player from './player/player';
+import RemotePlayer from './player/remoteplayer';
 export class Kill {
-  victim: Player
-  killer: Player
-  constructor(killer: Player, victim: Player) {
+  victim: RemotePlayer
+  killer: RemotePlayer
+  constructor(killer: RemotePlayer, victim: RemotePlayer) {
     this.victim = victim;
     this.killer = killer;
   }

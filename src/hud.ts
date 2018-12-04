@@ -56,8 +56,8 @@ export default class HUD {
 
   // Game stats
   message: string
-  boost: number
-  health: number
+  boost: number = 0
+  health: number = 0
   status: string
   debug: Feed
   kills: Feed

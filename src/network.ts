@@ -4,7 +4,6 @@ import {
 } from 'three';
 
 export default class Network {
-  lobby: Lobby
   pc: RTCPeerConnection
   stateDC: RTCDataChannel
   stateOpen: boolean
@@ -12,9 +11,7 @@ export default class Network {
   eventOpen: boolean
   apiURL: string
 
-  constructor(lobby: Lobby) {
-    this.lobby = lobby;
-    this.lobby.game.net = this; // FIXME: We should probably inverse the dependency.
+  constructor() {
     this.pc = new RTCPeerConnection({
       iceServers: [{
         urls: "stun:stun.l.google.com:19302"
@@ -29,7 +26,6 @@ export default class Network {
     });
     stateDC.onclose = () => console.log('stateDC has closed')
     stateDC.onopen = () => this.onopenState();
-    stateDC.onmessage = e => this.lobby.game.onServerStateMessage(e.data);
     this.stateDC = stateDC;
 
     // Reliable datachannel to broadcast events
@@ -37,7 +33,6 @@ export default class Network {
 
     eventDC.onclose = () => console.log('eventDC has closed')
     eventDC.onopen = () => this.onopenEvent();
-    eventDC.onmessage = e => this.lobby.game.onServerEventMessage(e.data);
     this.eventDC = eventDC;
 
 
@@ -55,20 +50,23 @@ export default class Network {
     this.stateOpen = true;
     console.log('stateDC has opened');
     if (this.eventOpen) {
-      this.lobby.game.start();
+      this.onstart();
     }
   }
+
+  // overriden in game
+  onstart(): void {}
 
   onopenEvent(): void {
     this.eventOpen = true;
     console.log('eventDC has opened');
     if (this.eventOpen) {
-      this.lobby.game.start();
+      this.onstart();
     }
   }
 
-  join(pool) {
-    this.newSession(this.pc.localDescription, pool)
+  join(name, pool) {
+    this.newSession(name, this.pc.localDescription, pool)
     .then((sdp) => {
       this.pc.setRemoteDescription(new RTCSessionDescription({
         type: 'answer',
@@ -87,8 +85,8 @@ export default class Network {
     this.eventDC.send(data)
   }
 
-  newSession(sdp, pool) {
-    return this.fetch('pool/' + pool.name + '/join/' + this.lobby.game.player.name, {
+  newSession(name, sdp, pool) {
+    return this.fetch('pool/' + pool.name + '/join/' + name, {
       method: "POST",
       body: btoa(sdp.sdp),
     })

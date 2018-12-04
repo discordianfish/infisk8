@@ -51,7 +51,7 @@ export default class Projectile {
       this.maxDistance = 1000
     }
     console.log("max distance for projectile", this.maxDistance)
-    this.particleSystem = new ParticleSystem(game.scene, game.camera)
+    this.particleSystem = new ParticleSystem(game.scene, game.sm.camera)
   }
 
   finish(): void {

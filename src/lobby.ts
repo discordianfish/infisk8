@@ -6,16 +6,17 @@ export default class Lobby {
   document: Document
   menu: HTMLElement
   nameField: HTMLInputElement
+  name: string
   game: Game
   net: Network
 
   open: boolean
 
-  constructor(document: Document, menu: HTMLElement, game: Game) {
+  constructor(document: Document, menu: HTMLElement, net: Network) {
     this.document = document;
     this.menu = menu;
-    this.game = game;
-    this.net = new Network(this);
+    this.net = net;
+    this.open = true;
     if (!('pointerLockElement' in document)) {
       menu.innerHTML = 'Point Lock API not support :('
       return
@@ -28,6 +29,7 @@ export default class Lobby {
     if (this.nameField.value == '') {
       this.nameField.value = nameGenerator()
     }
+    this.name = this.nameField.value;
 
     let sle = this.menu.getElementsByClassName('session-list')[0];
     this.generateServerList(sle)
@@ -56,8 +58,8 @@ export default class Lobby {
   }
 
   join(pool) {
-    this.game.player.name = this.nameField.value;
-    this.net.join(pool)
+    this.name = this.nameField.value;
+    this.net.join(this.name, pool)
   }
 
   lockPointer() {
@@ -67,7 +69,6 @@ export default class Lobby {
 
   pointerlockchange(event: Event) {
     if (this.document.pointerLockElement === this.document.body) {
-      console.log("pointer locked, lobby closed, start game");
       this.open = false;
       this.menu.style.display = 'none';
     } else {

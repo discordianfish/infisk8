@@ -9,17 +9,14 @@ var PI_2 = Math.PI / 2;
 
 const vector3Zero = new Vector3();
 
-const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
-const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
-
 export default class LocalPlayer extends Player {
   document: Document
   rigidbody: Rigidbody
   controls: Controls
+  object: Object3D
 
   plElement: HTMLElement
   isLocked: boolean
-  pitchObject: Object3D
   scene: Scene
   projectiles: Array<Projectile>
   speed: number
@@ -32,7 +29,7 @@ export default class LocalPlayer extends Player {
   cooldown: number
   lastFired: number
   health: number = 100;
-  constructor(document: Document, game: Game, controls: Controls, name: string) {
+  constructor(document: Document, game: Game, controls: Controls, object: Object3D, name: string) {
     super(game, name);
     this.document = document;
     this.game = game;
@@ -46,58 +43,13 @@ export default class LocalPlayer extends Player {
     this.lastFired = performance.now();
 
 	  this.plElement = document.body;
-	  this.isLocked = false;
+    this.isLocked = false;
+    this.object = object
 
-    game.camera.rotation.set( 0, 0, 0 );
-
-	  this.pitchObject = new Object3D();
-    this.pitchObject.add(game.camera);
-    this.pitchObject.position.y = 1.5;
-
-    this.object = new Object3D();
-    this.object.add(this.pitchObject);
     this.rigidbody = new Rigidbody(game, this.object);
 
     this.projectiles = [];
   }
-
-  onMouseMove( event ) {
-		if (!this.isLocked) return;
-
-		var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-    var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-
-		this.object.rotation.y -= movementX * 0.002;
-		this.pitchObject.rotation.x -= movementY * 0.002;
-
-    this.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, this.pitchObject.rotation.x));
-	}
-
-	onPointerlockChange() {
-		if (this.document.pointerLockElement === this.plElement ) {
-      this.document.dispatchEvent(eventLock);
-			this.isLocked = true;
-		} else {
-      this.document.dispatchEvent(eventUnlock);
-			this.isLocked = false;
-		}
-	}
-
-	onPointerlockError() {
-		console.log( 'THREE.PointerLockControls: Unable to use Pointer Lock API' );
-	}
-
-	addEventListeners() {
-    this.document.addEventListener( 'mousemove', e => this.onMouseMove(e), false );
-    this.document.addEventListener( 'pointerlockchange', e => this.onPointerlockChange(), false );
-    this.document.addEventListener( 'pointerlockerror', e => this.onPointerlockError(), false );
-	};
-
-  removeEventListener() {
-    this.document.removeEventListener( 'mousemove', e => this.onMouseMove(e), false );
-    this.document.removeEventListener( 'pointerlockchange', e => this.onPointerlockChange(), false );
-    this.document.removeEventListener( 'pointerlockerror', e => this.onPointerlockError(), false );
-  };
 
   fire() {
     let now = performance.now();
@@ -106,7 +58,7 @@ export default class LocalPlayer extends Player {
       return
     }
     this.lastFired = now;
-    var projectile = new Projectile(this.game, this.object.position, this.game.camera.getWorldQuaternion(new Quaternion()))
+    var projectile = new Projectile(this.game, this.object.position, this.game.sm.camera.getWorldQuaternion(new Quaternion()))
     this.game.scene.add(projectile.object)
     this.projectiles.push(projectile)
     this.game.audio.fire()
