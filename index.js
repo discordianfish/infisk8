@@ -53159,55 +53159,44 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
 const localplayer_1 = __webpack_require__(/*! ./player/localplayer */ "./src/player/localplayer.ts");
 const remoteplayer_1 = __webpack_require__(/*! ./player/remoteplayer */ "./src/player/remoteplayer.ts");
-const lobby_1 = __webpack_require__(/*! ./lobby */ "./src/lobby.ts");
 const terrain_1 = __webpack_require__(/*! ./terrain/terrain */ "./src/terrain/terrain.ts");
 const config_1 = __webpack_require__(/*! ./terrain/config */ "./src/terrain/config.ts");
-const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
-const hud_1 = __webpack_require__(/*! ./hud */ "./src/hud.ts");
-const audio_1 = __webpack_require__(/*! ./audio */ "./src/audio.ts");
 const Events = __webpack_require__(/*! ./events */ "./src/events.ts");
 const vectorDown = new three_1.Vector3(0, -1, 0);
 class Game {
-    constructor(window, document) {
-        this.window = window;
-        let url = new URL(window.location.href);
-        this.debug = url.searchParams.get('debug') == '1';
+    constructor(scene, sm, controls, hud, audio, net, lobby, debug) {
+        this.scene = scene;
+        this.sm = sm;
+        this.controls = controls;
+        this.hud = hud;
+        this.audio = audio;
+        this.net = net;
+        this.lobby = lobby;
+        this.debug = debug;
         this.players = {};
-        this.scene = new three_1.Scene();
-        this.camera = new three_1.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
-        let renderer = new three_1.WebGLRenderer();
-        renderer.autoClear = false;
-        renderer.setClearColor(0xBDFFFD);
-        this.renderer = renderer;
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(this.renderer.domElement);
+        this.net.stateDC.onmessage = e => this.onServerStateMessage(e.data);
+        this.net.eventDC.onmessage = e => this.onServerEventMessage(e.data);
+        this.net.onstart = () => this.start();
         let light = new three_1.DirectionalLight(0xffffff, 1.0);
         light.position.set(100, 100, 100);
         this.scene.add(light);
         let light2 = new three_1.DirectionalLight(0xffffff, 1.0);
         light2.position.set(-100, 100, -100);
         this.scene.add(light2);
-        this.hud = new hud_1.default(window, document);
-        this.audio = new audio_1.default(window);
         this.raycaster = new three_1.Raycaster();
         this.terrainSize = 1000;
-        let seed = parseFloat(url.searchParams.get('seed')) || 23;
+        let seed = 23;
         let terrainConfig = new config_1.default();
         this.terrain = new terrain_1.default(seed, this.terrainSize, this.terrainSize, terrainConfig);
         this.terrain.mesh.rotation.x = -Math.PI / 2; // FIXME: Generate geometry in correct orientation right away..
         this.scene.add(this.terrain.mesh);
-        this.render();
-        let lobby = new lobby_1.default(document, document.getElementById('menu-wrapper'), this);
-        let controls = new controls_1.default(document);
-        this.player = new localplayer_1.default(document, this, controls, "unknown");
-        this.addEventListeners();
-        this.player.addEventListeners();
+        this.player = new localplayer_1.default(document, this, controls, sm.object, lobby.name);
     }
     start() {
+        console.log("@start");
         this.player.spawn();
         this.scene.add(this.player.object);
         this.player.object.position.y = this.terrain.getHeight(this.player.object.position.x, this.player.object.position.z) + 10;
-        this.prevTime = performance.now();
         this.started = true;
     }
     // returns true if hit is registered with non-terrain.
@@ -53226,8 +53215,9 @@ class Game {
     }
     score(victim) {
         this.hud.flash(victim.name + " killed");
-        this.hud.kills.add(victim.name + " killed by " + this.player.name);
-        this.net.sendEvent(new Events.Kill(this.player, victim).serialize());
+        this.hud.kills.add(victim.name + " killed by " + this.lobby.name);
+        const rp = this.player;
+        this.net.sendEvent(new Events.Kill(rp, victim).serialize());
         this.killCounter += 1;
     }
     die(killer) {
@@ -53263,19 +53253,13 @@ class Game {
         }
         return this.raycaster.intersectObjects(objects);
     }
-    update() {
-        requestAnimationFrame(() => this.update());
+    update(delta) {
         if (!this.started) {
             return;
         }
-        this.net.updateServerState(this.serialize());
-        var time = performance.now();
-        var delta = (time - this.prevTime) / 1000;
-        this.prevTime = time;
         this.player.update(delta);
-        this.hud.update(delta);
-        this.hud.status = this.player.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1)].join(',') + ')';
-        this.render();
+        this.hud.status = this.lobby.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1)].join(',') + ')';
+        this.net.updateServerState(this.serialize());
     }
     onServerStateMessage(data) {
         // console.log("received:", data);
@@ -53288,7 +53272,7 @@ class Game {
         switch (event["type"]) {
             case 'Kill':
                 this.hud.kills.add(event.victim + " killed by " + event.target);
-                if (event.victim == this.player.name) {
+                if (event.victim == this.lobby.name) {
                     this.die(event.killer);
                 }
                 break;
@@ -53297,7 +53281,7 @@ class Game {
     serialize() {
         let p = this.player.object.position;
         return JSON.stringify({
-            name: this.player.name,
+            name: this.lobby.name,
             position: [p.x, p.y, p.z],
         });
     }
@@ -53314,20 +53298,6 @@ class Game {
         });
         this.players[s.name].object.position.set(s.position[0], s.position[1], s.position[2]);
         // console.log(s.name + '=(' + s.position.join(',') + ')');
-    }
-    render() {
-        this.renderer.clear(true, true, true);
-        this.renderer.render(this.scene, this.camera);
-        this.renderer.render(this.hud.scene, this.hud.camera);
-    }
-    addEventListeners() {
-        this.window.addEventListener('resize', () => this.onWindowResize(), false);
-    }
-    onWindowResize() {
-        this.hud.onWindowResize();
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 }
 exports.default = Game;
@@ -53373,6 +53343,8 @@ class Feed {
 }
 class HUD {
     constructor(window, document) {
+        this.boost = 0;
+        this.health = 0;
         let width = window.innerWidth;
         let height = window.innerHeight;
         let canvas = document.createElement('canvas');
@@ -53451,10 +53423,44 @@ exports.default = HUD;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
+const scene_manager_1 = __webpack_require__(/*! ./scene_manager */ "./src/scene_manager.ts");
 const game_1 = __webpack_require__(/*! ./game */ "./src/game.ts");
-let game = new game_1.default(window, document);
+const hud_1 = __webpack_require__(/*! ./hud */ "./src/hud.ts");
+const lobby_1 = __webpack_require__(/*! ./lobby */ "./src/lobby.ts");
+const controls_1 = __webpack_require__(/*! ./controls */ "./src/controls.ts");
+const audio_1 = __webpack_require__(/*! ./audio */ "./src/audio.ts");
+const network_1 = __webpack_require__(/*! ./network */ "./src/network.ts");
+const net = new network_1.default();
+const lobby = new lobby_1.default(document, document.getElementById('menu-wrapper'), net);
+const hud = new hud_1.default(window, document);
+const canvas = document.getElementById("canvas");
+const sm = new scene_manager_1.default(canvas, lobby, hud);
+window.sm = sm;
+sm.subjects.push(hud);
+function render() {
+    requestAnimationFrame(render);
+    sm.update();
+}
+function resizeCanvas() {
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    sm.onWindowResize();
+}
+window.onresize = resizeCanvas;
+resizeCanvas();
+const url = new URL(window.location.href);
+const DEBUG = url.searchParams.get('debug') == '1';
+const SEED = parseFloat(url.searchParams.get('seed')) || 23;
+const audio = new audio_1.default(window);
+const controls = new controls_1.default(document);
+const game = new game_1.default(sm.scene, sm, controls, hud, audio, net, lobby, DEBUG);
+sm.subjects.push(game);
 window.game = game;
-game.update();
+document.addEventListener('mousemove', e => sm.onMouseMove(e));
+document.addEventListener('pointerlockerror', e => { alert(e); });
+render();
 
 
 /***/ }),
@@ -53469,14 +53475,13 @@ game.update();
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const network_1 = __webpack_require__(/*! ./network */ "./src/network.ts");
 const utils_1 = __webpack_require__(/*! ./utils */ "./src/utils.ts");
 class Lobby {
-    constructor(document, menu, game) {
+    constructor(document, menu, net) {
         this.document = document;
         this.menu = menu;
-        this.game = game;
-        this.net = new network_1.default(this);
+        this.net = net;
+        this.open = true;
         if (!('pointerLockElement' in document)) {
             menu.innerHTML = 'Point Lock API not support :(';
             return;
@@ -53487,6 +53492,7 @@ class Lobby {
         if (this.nameField.value == '') {
             this.nameField.value = utils_1.default();
         }
+        this.name = this.nameField.value;
         let sle = this.menu.getElementsByClassName('session-list')[0];
         this.generateServerList(sle);
         let lb = this.menu.getElementsByClassName('close')[0];
@@ -53509,8 +53515,8 @@ class Lobby {
         });
     }
     join(pool) {
-        this.game.player.name = this.nameField.value;
-        this.net.join(pool);
+        this.name = this.nameField.value;
+        this.net.join(this.name, pool);
     }
     lockPointer() {
         this.document.body.requestPointerLock = this.document.body.requestPointerLock;
@@ -53518,7 +53524,6 @@ class Lobby {
     }
     pointerlockchange(event) {
         if (this.document.pointerLockElement === this.document.body) {
-            console.log("pointer locked, lobby closed, start game");
             this.open = false;
             this.menu.style.display = 'none';
         }
@@ -53547,9 +53552,7 @@ exports.default = Lobby;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 class Network {
-    constructor(lobby) {
-        this.lobby = lobby;
-        this.lobby.game.net = this; // FIXME: We should probably inverse the dependency.
+    constructor() {
         this.pc = new RTCPeerConnection({
             iceServers: [{
                     urls: "stun:stun.l.google.com:19302"
@@ -53563,13 +53566,11 @@ class Network {
         });
         stateDC.onclose = () => console.log('stateDC has closed');
         stateDC.onopen = () => this.onopenState();
-        stateDC.onmessage = e => this.lobby.game.onServerStateMessage(e.data);
         this.stateDC = stateDC;
         // Reliable datachannel to broadcast events
         let eventDC = this.pc.createDataChannel('events');
         eventDC.onclose = () => console.log('eventDC has closed');
         eventDC.onopen = () => this.onopenEvent();
-        eventDC.onmessage = e => this.lobby.game.onServerEventMessage(e.data);
         this.eventDC = eventDC;
         this.pc.oniceconnectionstatechange = () => console.log('state change', this.pc.iceConnectionState);
         this.pc.onicecandidate = event => {
@@ -53583,18 +53584,20 @@ class Network {
         this.stateOpen = true;
         console.log('stateDC has opened');
         if (this.eventOpen) {
-            this.lobby.game.start();
+            this.onstart();
         }
     }
+    // overriden in game
+    onstart() { }
     onopenEvent() {
         this.eventOpen = true;
         console.log('eventDC has opened');
         if (this.eventOpen) {
-            this.lobby.game.start();
+            this.onstart();
         }
     }
-    join(pool) {
-        this.newSession(this.pc.localDescription, pool)
+    join(name, pool) {
+        this.newSession(name, this.pc.localDescription, pool)
             .then((sdp) => {
             this.pc.setRemoteDescription(new RTCSessionDescription({
                 type: 'answer',
@@ -53610,8 +53613,8 @@ class Network {
     sendEvent(data) {
         this.eventDC.send(data);
     }
-    newSession(sdp, pool) {
-        return this.fetch('pool/' + pool.name + '/join/' + this.lobby.game.player.name, {
+    newSession(name, sdp, pool) {
+        return this.fetch('pool/' + pool.name + '/join/' + name, {
             method: "POST",
             body: btoa(sdp.sdp),
         })
@@ -53655,10 +53658,8 @@ const rigidbody_1 = __webpack_require__(/*! ../rigidbody */ "./src/rigidbody.ts"
 const player_1 = __webpack_require__(/*! ./player */ "./src/player/player.ts");
 var PI_2 = Math.PI / 2;
 const vector3Zero = new three_1.Vector3();
-const eventLock = new CustomEvent('lock'); // , { type: 'lock' });
-const eventUnlock = new CustomEvent('unlock'); // , { type: 'unlock' });
 class LocalPlayer extends player_1.default {
-    constructor(document, game, controls, name) {
+    constructor(document, game, controls, object, name) {
         super(game, name);
         this.boostFactor = 1.5;
         this.maxSpeedGround = 20;
@@ -53674,49 +53675,10 @@ class LocalPlayer extends player_1.default {
         this.lastFired = performance.now();
         this.plElement = document.body;
         this.isLocked = false;
-        game.camera.rotation.set(0, 0, 0);
-        this.pitchObject = new three_1.Object3D();
-        this.pitchObject.add(game.camera);
-        this.pitchObject.position.y = 1.5;
-        this.object = new three_1.Object3D();
-        this.object.add(this.pitchObject);
+        this.object = object;
         this.rigidbody = new rigidbody_1.default(game, this.object);
         this.projectiles = [];
     }
-    onMouseMove(event) {
-        if (!this.isLocked)
-            return;
-        var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-        var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-        this.object.rotation.y -= movementX * 0.002;
-        this.pitchObject.rotation.x -= movementY * 0.002;
-        this.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, this.pitchObject.rotation.x));
-    }
-    onPointerlockChange() {
-        if (this.document.pointerLockElement === this.plElement) {
-            this.document.dispatchEvent(eventLock);
-            this.isLocked = true;
-        }
-        else {
-            this.document.dispatchEvent(eventUnlock);
-            this.isLocked = false;
-        }
-    }
-    onPointerlockError() {
-        console.log('THREE.PointerLockControls: Unable to use Pointer Lock API');
-    }
-    addEventListeners() {
-        this.document.addEventListener('mousemove', e => this.onMouseMove(e), false);
-        this.document.addEventListener('pointerlockchange', e => this.onPointerlockChange(), false);
-        this.document.addEventListener('pointerlockerror', e => this.onPointerlockError(), false);
-    }
-    ;
-    removeEventListener() {
-        this.document.removeEventListener('mousemove', e => this.onMouseMove(e), false);
-        this.document.removeEventListener('pointerlockchange', e => this.onPointerlockChange(), false);
-        this.document.removeEventListener('pointerlockerror', e => this.onPointerlockError(), false);
-    }
-    ;
     fire() {
         let now = performance.now();
         if (now - this.lastFired < this.cooldown) {
@@ -53724,7 +53686,7 @@ class LocalPlayer extends player_1.default {
             return;
         }
         this.lastFired = now;
-        var projectile = new projectile_1.default(this.game, this.object.position, this.game.camera.getWorldQuaternion(new three_1.Quaternion()));
+        var projectile = new projectile_1.default(this.game, this.object.position, this.game.sm.camera.getWorldQuaternion(new three_1.Quaternion()));
         this.game.scene.add(projectile.object);
         this.projectiles.push(projectile);
         this.game.audio.fire();
@@ -53924,7 +53886,7 @@ class Projectile {
             this.maxDistance = 1000;
         }
         console.log("max distance for projectile", this.maxDistance);
-        this.particleSystem = new three_gpu_particle_system_1.ParticleSystem(game.scene, game.camera);
+        this.particleSystem = new three_gpu_particle_system_1.ParticleSystem(game.scene, game.sm.camera);
     }
     finish() {
         this.game.scene.remove(this.particleSystem);
@@ -54049,6 +54011,7 @@ class Rigidbody {
             this.velocity.y -= 9.8 * delta;
         }
         this.object.position.add(this.velocity.clone().multiplyScalar(delta));
+        // console.log("Post in rb", this.object.position);
     }
     groundCheck() {
         var rayOffset = 100;
@@ -54056,6 +54019,7 @@ class Rigidbody {
         rayOrigin.y += rayOffset;
         var groundLevel = this.game.terrain.getHeight(this.object.position.x, this.object.position.z);
         var groundDistance = this.object.position.y - groundLevel;
+        //console.log("@groundcheck groundDistance", groundDistance, "groundLevel", groundLevel, "at", this.object.position)
         if (groundDistance < 1) {
             if (this.onGround) { // not first time we hit the ground, skipping reflection
                 return groundLevel;
@@ -54083,6 +54047,77 @@ class Rigidbody {
     }
 }
 exports.default = Rigidbody;
+
+
+/***/ }),
+
+/***/ "./src/scene_manager.ts":
+/*!******************************!*\
+  !*** ./src/scene_manager.ts ***!
+  \******************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const three_1 = __webpack_require__(/*! three */ "./node_modules/three/build/three.module.js");
+const PI_2 = Math.PI / 2;
+class SceneManager {
+    constructor(canvas, menu, hud) {
+        this.menu = menu;
+        this.hud = hud;
+        let camera = new three_1.PerspectiveCamera(75, canvas.width / canvas.height, 0.01, 1000);
+        let renderer = new three_1.WebGLRenderer({ canvas: canvas }); //, antialias: true, alpha: true });
+        renderer.autoClear = false;
+        renderer.setClearColor(0xBDFFFD);
+        this.canvas = canvas;
+        this.renderer = renderer;
+        this.camera = camera;
+        this.subjects = [];
+        this.scene = new three_1.Scene();
+        this.camera.rotation.set(0, 0, 0);
+        this.pitchObject = new three_1.Object3D();
+        this.pitchObject.add(this.camera);
+        this.pitchObject.position.y = 1.5;
+        this.object = new three_1.Object3D();
+        this.object.add(this.pitchObject);
+        console.log("object child", this.camera);
+        this.lastFrameTime = performance.now();
+    }
+    onMouseMove(event) {
+        if (this.menu.open)
+            return;
+        let movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+        let movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+        // console.log("movementX", movementX, "movementY", movementY);
+        this.object.rotation.y -= movementX * 0.002;
+        this.pitchObject.rotation.x -= movementY * 0.002;
+        this.pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, this.pitchObject.rotation.x));
+    }
+    update() {
+        let time = performance.now();
+        let delta = (time - this.lastFrameTime) / 1000;
+        this.lastFrameTime = time;
+        this.subjects.forEach((s) => s.update(delta));
+        this.renderer.clear(true, true, true);
+        this.renderer.render(this.scene, this.camera);
+        this.renderer.render(this.hud.scene, this.hud.camera);
+    }
+    onWindowResize() {
+        console.log("@onWindowREsize");
+        this.subjects.forEach((s) => {
+            if (typeof s.onWindowResize === 'function') {
+                s.onWindowResize();
+            }
+        });
+        this.camera.aspect = this.canvas.width / this.canvas.height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(this.canvas.width, this.canvas.height);
+        console.log("set size to", this.canvas.width, this.canvas.height);
+    }
+}
+exports.default = SceneManager;
 
 
 /***/ }),
