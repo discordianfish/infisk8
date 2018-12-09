@@ -1,4 +1,4 @@
-import eruda from 'eruda';
+import * as eruda from 'eruda';
 const eel = document.createElement('div');
 document.body.appendChild(eel);
 
