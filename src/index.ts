@@ -1,3 +1,8 @@
+import eruda from 'eruda';
+const eel = document.createElement('div');
+document.body.appendChild(eel);
+
+eruda.init({container: eel});
 import SceneManager from './scene_manager';
 import Game from './game';
 import HUD from './hud';
