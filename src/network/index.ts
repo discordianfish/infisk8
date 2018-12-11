@@ -1,4 +1,5 @@
-import Lobby from './lobby';
+import Lobby from '../lobby';
+import Pool from './pool';
 import {
   Vector3,
 } from 'three';
@@ -65,7 +66,7 @@ export default class Network {
     }
   }
 
-  join(name, pool) {
+  join(name: string, pool: Pool) {
     this.newSession(name, this.pc.localDescription, pool)
     .then((sdp) => {
       this.pc.setRemoteDescription(new RTCSessionDescription({
@@ -85,7 +86,7 @@ export default class Network {
     this.eventDC.send(data)
   }
 
-  newSession(name, sdp, pool) {
+  newSession(name, sdp, pool: Pool) {
     return this.fetch('pool/' + pool.name + '/join/' + name, {
       method: "POST",
       body: btoa(sdp.sdp),

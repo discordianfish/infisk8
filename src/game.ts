@@ -15,7 +15,6 @@ import {
 import Audio from './audio';
 import Controls from './controls';
 import HUD from './hud';
-import Lobby from './lobby';
 import LocalPlayer from './player/localplayer';
 import Model from './player/model';
 import Network from './network';
@@ -32,7 +31,6 @@ const vectorDown = new Vector3(0, -1, 0);
 export default class Game {
   player: LocalPlayer
   controls: Controls
-  lobby: Lobby
   terrain: Terrain
   scene: Scene
   sm: SceneManager // FIXME: We shouldn't know about this. This should be removed once we don't need to access camera from localplayer
@@ -47,14 +45,14 @@ export default class Game {
 
   debug: boolean
   killCounter: number
-  constructor(scene: Scene, sm: SceneManager, controls: Controls, hud: HUD, audio: Audio, net: Network, lobby: Lobby, debug: boolean) {
+  name: string
+  constructor(scene: Scene, sm: SceneManager, controls: Controls, hud: HUD, audio: Audio, net: Network, debug: boolean) {
     this.scene = scene;
     this.sm = sm;
     this.controls = controls;
     this.hud = hud;
     this.audio = audio;
     this.net = net;
-    this.lobby = lobby;
     this.debug = debug
     this.players = {};
 
@@ -80,7 +78,7 @@ export default class Game {
     this.terrain.mesh.rotation.x = -Math.PI/2; // FIXME: Generate geometry in correct orientation right away..
     this.scene.add(this.terrain.mesh)
 
-    this.player = new LocalPlayer(document, this, controls, sm.object, lobby.name);
+    this.player = new LocalPlayer(document, this, controls, sm.object, this.name);
   }
 
   start() {
@@ -110,7 +108,7 @@ export default class Game {
 
   score(victim: RemotePlayer) {
     this.hud.flash(victim.name + " killed");
-    this.hud.kills.add(victim.name + " killed by " + this.lobby.name);
+    this.hud.kills.add(victim.name + " killed by " + this.name);
     const rp = <RemotePlayer>this.player
     this.net.sendEvent(new Events.Kill(rp, victim).serialize());
     this.killCounter += 1
@@ -160,7 +158,7 @@ export default class Game {
       return
     }
     this.player.update(delta);
-    this.hud.status = this.lobby.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1) ].join(',') + ')';
+    this.hud.status = this.name + '(' + [this.player.object.position.x.toFixed(1), this.player.object.position.y.toFixed(1), this.player.object.position.z.toFixed(1) ].join(',') + ')';
     this.net.updateServerState(this.serialize());
   }
 
@@ -177,7 +175,7 @@ export default class Game {
     switch (event["type"]) {
       case 'Kill':
         this.hud.kills.add(event.victim + " killed by " + event.target);
-        if (event.victim == this.lobby.name) {
+        if (event.victim == this.name) {
           this.die(event.killer)
         }
         break;
@@ -187,7 +185,7 @@ export default class Game {
   serialize() {
     let p = this.player.object.position;
     return JSON.stringify({
-      name: this.lobby.name,
+      name: this.name,
       position: [ p.x, p.y, p.z ],
     })
   }

@@ -25,7 +25,7 @@ module.exports = {
     mode: 'development',
     devtool: 'source-map',
     entry: [
-        './src/index.ts'
+        './src/index.tsx'
     ],
     output: {
         path: __dirname + '/dist',
@@ -34,20 +34,8 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.ts$/,
-                use: 'awesome-typescript-loader'
-            }, {
-                test: /\.css$/,
-                exclude: /[\/\\]src[\/\\]/,
-                use: [
-                    {
-                        loader: 'style-loader',
-                        options: {
-                            sourceMap: true
-                        }
-                    },
-                    {loader: 'css-loader'}
-                ]
+                test: /\.tsx?$/,
+                use: 'awesome-typescript-loader',
             }, {
                 test: /\.css$/,
                 exclude: /[\/\\](node_modules|bower_components|public)[\/\\]/,
@@ -78,6 +66,6 @@ module.exports = {
             }
         ]
     },
-    resolve: { extensions: [".web.ts", ".web.js", ".ts", ".js"] },
+    resolve: { extensions: [".web.ts", ".web.js", ".ts", ".tsx", ".js", ".css"] },
     plugins: [HTMLWebpackPluginConfig, ProgressBarPluginConfig, ThreeWebpackPluginConfig, ProvidePlugin]
 }

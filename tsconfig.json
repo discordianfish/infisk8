@@ -1,11 +1,13 @@
 {
     "compilerOptions": {
         "target": "es6",
-        "module": "commonjs",
+        "module": "none",
         "moduleResolution": "node",
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "preserveConstEnums": true,
+        "jsx": "react",
+        "jsxFactory": "preact.h",
         "suppressImplicitAnyIndexErrors": true,
         "outDir": "./lib/",
         "allowSyntheticDefaultImports": true, // required for three-gpu-particle-system

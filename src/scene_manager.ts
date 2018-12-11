@@ -8,7 +8,6 @@ import {
   Renderer,
 } from 'three';
 
-import Lobby from './lobby';
 import HUD from './hud';
 interface Subject {
   update(delta: number): void;
@@ -25,12 +24,10 @@ export default class SceneManager {
   subjects: Array<Subject>
   object: Object3D
   pitchObject: Object3D
-  menu: Lobby
   hud: HUD
   lastFrameTime: number
 
-    constructor(canvas: HTMLCanvasElement, menu: Lobby, hud: HUD) {
-      this.menu = menu;
+    constructor(canvas: HTMLCanvasElement, hud: HUD) {
       this.hud = hud;
       let camera = new PerspectiveCamera(75, canvas.width / canvas.height, 0.01, 1000);
       let renderer = new WebGLRenderer({ canvas: canvas }); //, antialias: true, alpha: true });
@@ -54,7 +51,6 @@ export default class SceneManager {
     }
 
   onMouseMove( event ) {
-    if (this.menu.open) return;
     let movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
     let movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
