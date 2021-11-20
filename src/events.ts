@@ -1,4 +1,4 @@
-import RemotePlayer from './player/remoteplayer';
+import RemotePlayer from './player/remoteplayer.js';
 export class Kill {
   victim: RemotePlayer
   killer: RemotePlayer

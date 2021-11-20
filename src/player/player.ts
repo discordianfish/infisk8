@@ -6,7 +6,7 @@ import {
   Vector2,
 } from 'three';
 
-import Game from '../game';
+import Game from '../game.js';
 
 export default class Player {
   name: string

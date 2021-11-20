@@ -7,17 +7,17 @@ import {
   MeshLambertMaterial,
 } from 'three';
 
-import TerrainConfig from './config';
-import OpenSimplexNoise from 'open-simplex-noise';
+import TerrainConfig from './config.js';
+import SimplexNoise from 'simplex-noise';
 
 export default class Terrain {
   config: TerrainConfig
-  noiseGen: OpenSimplexNoise
+  noiseGen
   mesh: Mesh
 
   constructor(seed: number, width: number, height: number, config: TerrainConfig) {
     this.config = config;
-    this.noiseGen = new OpenSimplexNoise(seed);
+    this.noiseGen = new SimplexNoise(seed);
 
     var geometry = this.newGeometry(width, height, width / 5, height / 5)
     var material = this.newMaterial()

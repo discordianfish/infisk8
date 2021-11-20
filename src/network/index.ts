@@ -1,5 +1,4 @@
-import Lobby from '../lobby';
-import Pool from './pool';
+import Pool from './pool.js';
 import {
   Vector3,
 } from 'three';

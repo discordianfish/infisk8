@@ -1,9 +1,9 @@
 import {Object3D, Scene, Vector3, Quaternion} from 'three';
-import Projectile from '../projectile/projectile';
-import Game from '../game';
-import Rigidbody from '../rigidbody';
-import Controls from '../controls';
-import Player from './player';
+import Projectile from '../projectile/projectile.js';
+import Game from '../game.js';
+import Rigidbody from '../rigidbody.js';
+import Controls from '../controls.js';
+import Player from './player.js';
 
 var PI_2 = Math.PI / 2;
 

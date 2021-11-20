@@ -1,4 +1,4 @@
-import preact from 'preact';
+import { Component } from 'preact';
 import Network from '../network';
 import Game from '../game';
 import Pool from '../network/pool';
@@ -32,7 +32,7 @@ interface State {
   open: boolean
 }
 
-export default class Menu extends preact.Component<Props,State> {
+export default class Menu extends Component<Props,State> {
   pools: Pool[]
   net: Network
   game: Game

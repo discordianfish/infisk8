@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html style="margin: 0; padding: 0">
+
+<head>
+    <meta charset="utf-8">
+    <title>Infisk8</title>
+    <link rel="stylesheet" type="text/css" href="default.css">
+</head>
+
+<body style="margin: 0; padding: 0">
+    <div id="menu"></div>
+    <canvas id="canvas" style="position: absolute; z-index: -10"></canvas>
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "https://cdnjs.cloudflare.com/ajax/libs/preact/10.5.15/preact.module.min.js",
+          "preact/hooks": "https://cdnjs.cloudflare.com/ajax/libs/preact/10.5.15/hooks.module.min.js",
+          "preact/jsx-runtime": "https://unpkg.com/preact@10.5.15/jsx-runtime/dist/jsxRuntime.module.js",
+
+          "three": "https://unpkg.com/three@0.119.1/build/three.module.js", // https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
+          "three-gpu-particle-system": "./vendor/three-tdl-particle-system.module.js",
+
+          "simplex-noise": "https://unpkg.com/simplex-noise@3.0.0/dist/esm/simplex-noise.js"
+        }
+      }
+    </script>
+    <script src="dist/index.js" type="module">
+    </script>
+</body>
+
+</html>

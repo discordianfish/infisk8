@@ -46,7 +46,7 @@ export default class HUD {
   scene: Scene
   camera: Camera
   canvas: HTMLCanvasElement
-  cc: CanvasRenderingContext2D
+  cc: CanvasRenderingContext2D | null
   texture: Texture
   flashed: number
   flashTimeout: number

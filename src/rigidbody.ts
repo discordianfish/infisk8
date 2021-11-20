@@ -4,7 +4,7 @@ import {
   Matrix3,
   ArrowHelper,
 } from 'three';
-import Game from './game';
+import Game from './game.js';
 
 const vectorDown = new Vector3(0, -1, 0);
 

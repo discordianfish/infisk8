@@ -12,19 +12,19 @@ import {
   Quaternion,
 } from 'three';
 
-import Audio from './audio';
-import Controls from './controls';
-import HUD from './hud';
-import LocalPlayer from './player/localplayer';
-import Model from './player/model';
-import Network from './network';
-import Player from './player/player';
-import RemotePlayer from './player/remoteplayer';
-import SceneManager from './scene_manager';
-import Terrain from './terrain/terrain';
-import TerrainConfig from './terrain/config';
+import Audio from './audio.js';
+import Controls from './controls.js';
+import HUD from './hud.js';
+import LocalPlayer from './player/localplayer.js';
+import Model from './player/model.js';
+import Network from './network/index.js';
+import Player from './player/player.js';
+import RemotePlayer from './player/remoteplayer.js';
+import SceneManager from './scene_manager.js';
+import Terrain from './terrain/terrain.js';
+import TerrainConfig from './terrain/config.js';
 
-import * as Events from './events';
+import * as Events from './events.js';
 
 const vectorDown = new Vector3(0, -1, 0);
 

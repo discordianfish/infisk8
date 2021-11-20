@@ -1,29 +1,30 @@
 {
-    "compilerOptions": {
-        "target": "es6",
-        "module": "none",
-        "moduleResolution": "node",
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
-        "preserveConstEnums": true,
-        "jsx": "react",
-        "jsxFactory": "preact.h",
-        "suppressImplicitAnyIndexErrors": true,
-        "outDir": "./lib/",
-        "allowSyntheticDefaultImports": true, // required for three-gpu-particle-system
-    },
-    "awesomeTypescriptLoaderOptions": {
-        "useWebpackText": true,
-        "forkChecker": true,
-        "useCache": true
-    },
-    "exclude": [
-        "node_modules",
-        "lib"
-    ],
-    "compileOnSave": true,
-    "buildOnSave": false,
-    "atom": {
-        "rewriteTsconfig": false
-    }
+  "compilerOptions": {
+    "declaration": true,
+    "lib": ["es6", "dom", "dom.iterable"],
+    "module": "es6",
+    "moduleResolution": "node",
+    "removeComments": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "es6",
+    "outDir": "./dist",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    // FIXME: Add proper types
+    "suppressImplicitAnyIndexErrors": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
+    "esModuleInterop": true
+  },
+  "include": [
+    "types.d.ts",
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }

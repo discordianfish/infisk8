@@ -1,28 +1,22 @@
-import * as eruda from 'eruda';
-const eel = document.createElement('div');
-document.body.appendChild(eel);
+// import * as eruda from 'eruda';
+//const eel = document.createElement('div');
+//document.body.appendChild(eel);
 
-eruda.init({container: eel});
-import SceneManager from './scene_manager';
-import Game from './game';
-import HUD from './hud';
-import Controls from './controls';
-import Audio from './audio';
-import Menu from './menu';
-import Network from './network';
-import Terrain from './terrain/terrain';
-import TerrainConfig from './terrain/config';
+// eruda.init({container: eel});
+import SceneManager from './scene_manager.js';
+import Game from './game.js';
+import HUD from './hud.js';
+import Controls from './controls.js';
+import Audio from './audio.js';
+import Menu from './menu/index.js';
+import Network from './network/index.js';
+import Terrain from './terrain/terrain.js';
+import TerrainConfig from './terrain/config.js';
 import { Scene } from 'three';
 
-import preact from 'preact';
+import { render as preactRender, h as preactH } from 'preact';
 
 declare global {
-    interface Document {
-        pointerLockElement?: Element;
-    }
-    interface HTMLElement {
-        requestPointerLock?: any;
-    }
     interface Window {
       React: any;
       game: Game;
@@ -65,5 +59,5 @@ window.game = game;
 
 document.addEventListener('mousemove', e => sm.onMouseMove(e) );
 
-preact.render(<Menu net={net} game={game}/>, document.body);
+preactRender(preactH(Menu, {net: net, game: game}), document.body);
 render()

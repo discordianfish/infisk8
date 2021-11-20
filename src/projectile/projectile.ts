@@ -11,12 +11,11 @@ import {
   Raycaster,
   SphereGeometry,
   Vector3,
-  Vertex,
 } from 'three';
 
 import * as THREE from 'three';
 import { ParticleSystem, ParticleEmitter } from 'three-gpu-particle-system';
-import Game from '../game';
+import Game from '../game.js';
 
 export default class Projectile {
   object: Object3D
@@ -32,7 +31,7 @@ export default class Projectile {
     this.speed = 80;
 
     var geometry = new SphereGeometry(0.3, 32, 32);
-    geometry.applyMatrix(new Matrix4().makeScale(1, 0.1, 1));
+    geometry.applyMatrix4(new Matrix4().makeScale(1, 0.1, 1));
     var material = new MeshBasicMaterial({color: 0x00ffff});
 
     this.origin = position.clone();
@@ -55,7 +54,7 @@ export default class Projectile {
   }
 
   finish(): void {
-    this.game.scene.remove(this.particleSystem);
+    // this.game.scene.remove(this.particleSystem);
   }
 
   // move projectile in rotation direction
@@ -84,8 +83,8 @@ export default class Projectile {
     this.exploded = performance.now();
     this.game.audio.explosion(this.object.position);
     this.game.scene.remove(this.object);
-    this.game.scene.add(this.smokeEmitter(this.object.position, this.object.quaternion));
-    this.game.scene.add(this.blastEmitter(this.object.position, this.object.quaternion));
+    //this.game.scene.add(this.smokeEmitter(this.object.position, this.object.quaternion));
+    //this.game.scene.add(this.blastEmitter(this.object.position, this.object.quaternion));
   }
 
   smokeEmitter(position: Vector3, rotation: Quaternion): ParticleEmitter {

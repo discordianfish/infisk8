@@ -7,9 +7,9 @@ import {
   Vector2,
 } from 'three';
 
-import Game from '../game';
-import Player from './player';
-import Model from './model';
+import Game from '../game.js';
+import Player from './player.js';
+import Model from './model.js';
 
 export default class RemotePlayer extends Player {
   name: string

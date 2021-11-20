@@ -8,7 +8,7 @@ import {
   Renderer,
 } from 'three';
 
-import HUD from './hud';
+import HUD from './hud.js';
 interface Subject {
   update(delta: number): void;
   onWindowResize?(): void;
