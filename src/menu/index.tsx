@@ -30,6 +30,7 @@ interface Props {
 interface State {
   pools: Pool[]
   open: boolean
+  name: string
 }
 
 export default class Menu extends Component<Props,State> {
@@ -41,8 +42,7 @@ export default class Menu extends Component<Props,State> {
   constructor(props: Props) {
     super(props)
     this.net = props.net;
-    this.game = props.game;
-    this.state = { pools: [], open: true };
+    this.state = { pools: [], open: true, name: "" };
     props.net.pools().then((pools) => {
       this.setState({pools: pools});
     })
@@ -52,7 +52,7 @@ export default class Menu extends Component<Props,State> {
   }
 
   join(pool) {
-    this.net.join(this.name, pool)
+    this.net.join(this.state.name, pool)
     this.close();
   }
 
@@ -69,8 +69,8 @@ export default class Menu extends Component<Props,State> {
     console.log(event);
   }
 
-  onNameInput(event: Event) {
-    console.log(event.target);
+  onNameInput(name) {
+    this.setState({name: name});
   }
 
   render(props, state) {
@@ -88,7 +88,7 @@ export default class Menu extends Component<Props,State> {
         <h2>Join Game</h2>
         <p>
         <label for="name" style="display: block">Name:</label>
-        <input type="text" name="name" class="name" onInput={e => this.onNameInput(e)} placeholder="Enter your name" required />
+        <input type="text" name="name" class="name" onInput={e => this.onNameInput((e.currentTarget as HTMLInputElement).value)} placeholder="Enter your name" required />
         </p>
         <table>
           <tr><th>Name</th><th>Join</th></tr>
