@@ -17,7 +17,7 @@ export default class Network {
         urls: "stun:stun.l.google.com:19302"
       }]
     })
-    this.apiURL = "https://infisk8.5pi.de";
+    this.apiURL = "https://pluto.5pi.de/infisk8/api";
 
     // Unreliable datachannel to broadcast state
     let stateDC = this.pc.createDataChannel('state', {
